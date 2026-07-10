@@ -7,6 +7,11 @@
 
 const KMH_PER_KNOT = 1.852;
 const STORAGE_KEY = 'korvgrundrunt.v2';
+const ADMIN_FLAG = 'korvgrundrunt.admin';
+// Lösenord/nyckel för arrangörsläge. Byt gärna till något eget.
+// OBS: på en ren statisk sida är detta ett enkelt skydd — riktig behörighet
+// läggs server-sidan när databasen (Supabase) kopplas på.
+const ADMIN_KEY = 'korvgrund2026';
 
 const knotsToKmh = (kn) => kn * KMH_PER_KNOT;
 const kmhToKnots = (kmh) => kmh / KMH_PER_KNOT;
@@ -206,7 +211,7 @@ const el = {
   startTable: $('startTable'), startBody: $('startBody'), emptyState: $('emptyState'),
   listTitle: $('listTitle'), listSub: $('listSub'), listBadge: $('listBadge'), listCount: $('listCount'),
   fineprint: $('fineprint'), listCard: $('listCard'),
-  nav: $('siteNav'), navToggle: $('navToggle'), navLinks: $('navLinks'),
+  nav: $('siteNav'), navToggle: $('navToggle'), navLinks: $('navLinks'), adminLink: $('adminLink'),
 };
 
 let pendingEstimate = null; // fryst systemförslag att validera mot
@@ -244,7 +249,7 @@ function renderStartList() {
 
   el.startBody.innerHTML = list.map((e) => {
     const rel = fmtRelative(e.relOffsetMin);
-    const del = state.locked ? '' : `<td class="col-act no-print"><button class="row-del" title="Ta bort" data-id="${e.id}">✕</button></td>`;
+    const del = (state.locked || !isAdmin()) ? '' : `<td class="col-act no-print"><button class="row-del" title="Ta bort" data-id="${e.id}">✕</button></td>`;
     const tag = e.isFastest ? '<span class="tag-fastest">Snabbast · sist ut</span>' : '';
     return `
       <tr>
@@ -267,7 +272,7 @@ function renderStartList() {
       </tr>`;
   }).join('');
 
-  if (!state.locked) {
+  if (!state.locked && isAdmin()) {
     el.startBody.querySelectorAll('.row-del').forEach((b) => b.addEventListener('click', () => removeEntry(b.dataset.id)));
   }
 
@@ -297,15 +302,18 @@ function initInputs() {
   el.maxDev.value = state.settings.maxDevPct;
 }
 el.distanceNm.addEventListener('input', () => {
+  if (!isAdmin()) return;
   const v = parseFloat(el.distanceNm.value);
   if (v > 0) { state.settings.distanceNm = v; saveState(); renderStartList(); }
 });
 el.firstStart.addEventListener('input', () => {
+  if (!isAdmin()) return;
   const v = el.firstStart.value || '13:00:00';
   state.settings.firstStart = v.length === 5 ? v + ':00' : v;
   saveState(); renderStartList();
 });
 el.maxDev.addEventListener('input', () => {
+  if (!isAdmin()) return;
   const v = parseInt(el.maxDev.value, 10);
   if (v >= 0 && v <= 90) { state.settings.maxDevPct = v; saveState(); }
 });
@@ -406,12 +414,46 @@ function resetForm() {
 }
 
 function removeEntry(id) {
-  if (state.locked) return;
+  if (state.locked || !isAdmin()) return;
   state.entries = state.entries.filter((e) => e.id !== id);
   saveState(); renderAll();
 }
 
+/* ---------- Admin-läge ---------- */
+function isAdmin() {
+  try { return localStorage.getItem(ADMIN_FLAG) === '1'; } catch { return false; }
+}
+function setAdmin(on) {
+  try { on ? localStorage.setItem(ADMIN_FLAG, '1') : localStorage.removeItem(ADMIN_FLAG); } catch {}
+  applyAdmin();
+}
+function applyAdmin() {
+  document.body.classList.toggle('admin', isAdmin());
+  if (el.adminLink) el.adminLink.textContent = isAdmin() ? 'Logga ut arrangör' : 'Arrangörsinloggning';
+}
+function initAdmin() {
+  // Aktivera via länk ?admin=NYCKEL (t.ex. bokmärke för arrangören)
+  try {
+    const p = new URLSearchParams(location.search);
+    if (p.get('admin') === ADMIN_KEY) {
+      setAdmin(true);
+      p.delete('admin');
+      const qs = p.toString();
+      history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash);
+    }
+  } catch {}
+  applyAdmin();
+  if (el.adminLink) el.adminLink.addEventListener('click', () => {
+    if (isAdmin()) { setAdmin(false); renderAll(); return; }
+    const pass = prompt('Lösenord för arrangör:');
+    if (pass == null) return;
+    if (pass === ADMIN_KEY) { setAdmin(true); renderAll(); }
+    else alert('Fel lösenord.');
+  });
+}
+
 el.lockBtn.addEventListener('click', () => {
+  if (!isAdmin()) return;
   if (!state.locked && state.entries.length === 0) return;
   state.locked = !state.locked;
   saveState(); renderAll();
@@ -445,4 +487,5 @@ if (heroVideo) {
 initInputs();
 toggleJetski();
 onScroll();
+initAdmin();
 renderAll();

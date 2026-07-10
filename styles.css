@@ -447,6 +447,19 @@ body.locked .list-card { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(1
 .site-foot p { margin: 4px 0; font-size: 0.92rem; }
 .foot-fine { color: #7f95ab; font-size: 0.82rem; }
 .foot-credit { color: #61788f; font-size: 0.74rem; margin-top: 10px; }
+.admin-link {
+  margin-top: 16px; background: none; border: none; cursor: pointer;
+  color: #7f95ab; font-family: var(--sans); font-size: 0.76rem; letter-spacing: 0.04em;
+  text-decoration: underline; text-underline-offset: 3px; opacity: 0.8; transition: color 0.2s, opacity 0.2s;
+}
+.admin-link:hover { color: #eaf3fb; opacity: 1; }
+body.admin .admin-link { color: var(--gold-bright); }
+
+/* Admin-läge — organisatörskontroller döljs för publik */
+.admin-only { display: none !important; }
+body.admin .settings-card.admin-only { display: block !important; }
+body.admin .btn.admin-only { display: inline-flex !important; }
+body:not(.admin) .panel-grid { grid-template-columns: 1fr; }
 
 /* ===================== Responsivt ===================== */
 @media (max-width: 900px) {

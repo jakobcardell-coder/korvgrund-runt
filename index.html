@@ -458,6 +458,19 @@ body.locked .list-card { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(1
 .site-foot p { margin: 4px 0; font-size: 0.92rem; }
 .foot-fine { color: #7f95ab; font-size: 0.82rem; }
 .foot-credit { color: #61788f; font-size: 0.74rem; margin-top: 10px; }
+.admin-link {
+  margin-top: 16px; background: none; border: none; cursor: pointer;
+  color: #7f95ab; font-family: var(--sans); font-size: 0.76rem; letter-spacing: 0.04em;
+  text-decoration: underline; text-underline-offset: 3px; opacity: 0.8; transition: color 0.2s, opacity 0.2s;
+}
+.admin-link:hover { color: #eaf3fb; opacity: 1; }
+body.admin .admin-link { color: var(--gold-bright); }
+
+/* Admin-läge — organisatörskontroller döljs för publik */
+.admin-only { display: none !important; }
+body.admin .settings-card.admin-only { display: block !important; }
+body.admin .btn.admin-only { display: inline-flex !important; }
+body:not(.admin) .panel-grid { grid-template-columns: 1fr; }
 
 /* ===================== Responsivt ===================== */
 @media (max-width: 900px) {
@@ -808,8 +821,8 @@ body.locked .list-card { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(1
           </div>
         </div>
 
-        <!-- Arrangörsinställningar -->
-        <aside class="card settings-card" id="settingsCard">
+        <!-- Arrangörsinställningar (endast admin) -->
+        <aside class="card settings-card admin-only" id="settingsCard">
           <h3 class="mini-head"><span class="ico">⚙</span> Arrangör</h3>
           <label class="field">
             <span class="label-text">Total racesträcka (nm)</span>
@@ -847,7 +860,7 @@ body.locked .list-card { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(1
             <span class="list-count" id="listCount"></span>
           </div>
           <div class="list-controls">
-            <button type="button" class="btn btn-gold" id="lockBtn">Lås startfältet</button>
+            <button type="button" class="btn btn-gold admin-only" id="lockBtn">Lås startfältet</button>
             <button type="button" class="btn btn-ghost" id="printBtn" hidden>Skriv ut</button>
           </div>
         </div>
@@ -884,6 +897,7 @@ body.locked .list-card { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(1
       <p>Handikappberäknad skärgårdsregatta · Tisdag 14 juli, start 13:00</p>
       <p class="foot-fine">Anmälningar sparas lokalt i din webbläsare.</p>
       <p class="foot-credit">Foto: Roberto (CC BY-SA 4.0) &amp; Rennbootarchiv Schulze (CC BY-SA 3.0) via Wikimedia Commons.</p>
+      <button type="button" class="admin-link" id="adminLink">Arrangörsinloggning</button>
     </div>
   </footer>
 
@@ -897,6 +911,11 @@ body.locked .list-card { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(1
 
 const KMH_PER_KNOT = 1.852;
 const STORAGE_KEY = 'korvgrundrunt.v2';
+const ADMIN_FLAG = 'korvgrundrunt.admin';
+// Lösenord/nyckel för arrangörsläge. Byt gärna till något eget.
+// OBS: på en ren statisk sida är detta ett enkelt skydd — riktig behörighet
+// läggs server-sidan när databasen (Supabase) kopplas på.
+const ADMIN_KEY = 'korvgrund2026';
 
 const knotsToKmh = (kn) => kn * KMH_PER_KNOT;
 const kmhToKnots = (kmh) => kmh / KMH_PER_KNOT;
@@ -1096,7 +1115,7 @@ const el = {
   startTable: $('startTable'), startBody: $('startBody'), emptyState: $('emptyState'),
   listTitle: $('listTitle'), listSub: $('listSub'), listBadge: $('listBadge'), listCount: $('listCount'),
   fineprint: $('fineprint'), listCard: $('listCard'),
-  nav: $('siteNav'), navToggle: $('navToggle'), navLinks: $('navLinks'),
+  nav: $('siteNav'), navToggle: $('navToggle'), navLinks: $('navLinks'), adminLink: $('adminLink'),
 };
 
 let pendingEstimate = null; // fryst systemförslag att validera mot
@@ -1134,7 +1153,7 @@ function renderStartList() {
 
   el.startBody.innerHTML = list.map((e) => {
     const rel = fmtRelative(e.relOffsetMin);
-    const del = state.locked ? '' : `<td class="col-act no-print"><button class="row-del" title="Ta bort" data-id="${e.id}">✕</button></td>`;
+    const del = (state.locked || !isAdmin()) ? '' : `<td class="col-act no-print"><button class="row-del" title="Ta bort" data-id="${e.id}">✕</button></td>`;
     const tag = e.isFastest ? '<span class="tag-fastest">Snabbast · sist ut</span>' : '';
     return `
       <tr>
@@ -1157,7 +1176,7 @@ function renderStartList() {
       </tr>`;
   }).join('');
 
-  if (!state.locked) {
+  if (!state.locked && isAdmin()) {
     el.startBody.querySelectorAll('.row-del').forEach((b) => b.addEventListener('click', () => removeEntry(b.dataset.id)));
   }
 
@@ -1187,15 +1206,18 @@ function initInputs() {
   el.maxDev.value = state.settings.maxDevPct;
 }
 el.distanceNm.addEventListener('input', () => {
+  if (!isAdmin()) return;
   const v = parseFloat(el.distanceNm.value);
   if (v > 0) { state.settings.distanceNm = v; saveState(); renderStartList(); }
 });
 el.firstStart.addEventListener('input', () => {
+  if (!isAdmin()) return;
   const v = el.firstStart.value || '13:00:00';
   state.settings.firstStart = v.length === 5 ? v + ':00' : v;
   saveState(); renderStartList();
 });
 el.maxDev.addEventListener('input', () => {
+  if (!isAdmin()) return;
   const v = parseInt(el.maxDev.value, 10);
   if (v >= 0 && v <= 90) { state.settings.maxDevPct = v; saveState(); }
 });
@@ -1296,12 +1318,46 @@ function resetForm() {
 }
 
 function removeEntry(id) {
-  if (state.locked) return;
+  if (state.locked || !isAdmin()) return;
   state.entries = state.entries.filter((e) => e.id !== id);
   saveState(); renderAll();
 }
 
+/* ---------- Admin-läge ---------- */
+function isAdmin() {
+  try { return localStorage.getItem(ADMIN_FLAG) === '1'; } catch { return false; }
+}
+function setAdmin(on) {
+  try { on ? localStorage.setItem(ADMIN_FLAG, '1') : localStorage.removeItem(ADMIN_FLAG); } catch {}
+  applyAdmin();
+}
+function applyAdmin() {
+  document.body.classList.toggle('admin', isAdmin());
+  if (el.adminLink) el.adminLink.textContent = isAdmin() ? 'Logga ut arrangör' : 'Arrangörsinloggning';
+}
+function initAdmin() {
+  // Aktivera via länk ?admin=NYCKEL (t.ex. bokmärke för arrangören)
+  try {
+    const p = new URLSearchParams(location.search);
+    if (p.get('admin') === ADMIN_KEY) {
+      setAdmin(true);
+      p.delete('admin');
+      const qs = p.toString();
+      history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash);
+    }
+  } catch {}
+  applyAdmin();
+  if (el.adminLink) el.adminLink.addEventListener('click', () => {
+    if (isAdmin()) { setAdmin(false); renderAll(); return; }
+    const pass = prompt('Lösenord för arrangör:');
+    if (pass == null) return;
+    if (pass === ADMIN_KEY) { setAdmin(true); renderAll(); }
+    else alert('Fel lösenord.');
+  });
+}
+
 el.lockBtn.addEventListener('click', () => {
+  if (!isAdmin()) return;
   if (!state.locked && state.entries.length === 0) return;
   state.locked = !state.locked;
   saveState(); renderAll();
@@ -1335,6 +1391,7 @@ if (heroVideo) {
 initInputs();
 toggleJetski();
 onScroll();
+initAdmin();
 renderAll();
 
 </script>
