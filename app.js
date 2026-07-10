@@ -261,6 +261,7 @@ const el = {
   listTitle: $('listTitle'), listSub: $('listSub'), listBadge: $('listBadge'), listCount: $('listCount'),
   fineprint: $('fineprint'), listCard: $('listCard'),
   nav: $('siteNav'), navToggle: $('navToggle'), navLinks: $('navLinks'), adminLink: $('adminLink'),
+  thanksModal: $('thanksModal'), thanksCloseBtn: $('thanksCloseBtn'),
   adminModal: $('adminModal'), adminForm: $('adminForm'), adminEmail: $('adminEmail'),
   adminPassword: $('adminPassword'), adminLoginBtn: $('adminLoginBtn'), adminCancelBtn: $('adminCancelBtn'), adminError: $('adminError'),
 };
@@ -459,8 +460,23 @@ el.confirmBtn.addEventListener('click', async () => {
   }
   resetForm();
   await loadFromDb();
-  document.getElementById('startlista').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  showThanks();
 });
+
+/* ---------- Tack-modal efter anmälan ---------- */
+function showThanks() {
+  if (!el.thanksModal) {
+    document.getElementById('startlista').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+  el.thanksModal.hidden = false;
+}
+function closeThanks() {
+  if (el.thanksModal) el.thanksModal.hidden = true;
+  document.getElementById('startlista').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+if (el.thanksCloseBtn) el.thanksCloseBtn.addEventListener('click', closeThanks);
+if (el.thanksModal) el.thanksModal.addEventListener('click', (e) => { if (e.target === el.thanksModal) closeThanks(); });
 
 el.cancelEstimate.addEventListener('click', resetForm);
 function resetForm() {
