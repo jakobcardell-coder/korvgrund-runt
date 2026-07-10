@@ -385,12 +385,36 @@
     <div class="wrap foot-inner">
       <div class="foot-brand">Korvgrund&nbsp;Runt</div>
       <p>Handikappberäknad skärgårdsregatta · Tisdag 14 juli, start 13:00</p>
-      <p class="foot-fine">Anmälningar sparas lokalt i din webbläsare.</p>
+      <p class="foot-fine">Sajten har utvecklats i samarbete med styrelsen för Sthlmsveckorna.</p>
       <p class="foot-credit">Foto: Roberto (CC BY-SA 4.0) &amp; Rennbootarchiv Schulze (CC BY-SA 3.0) via Wikimedia Commons.</p>
       <button type="button" class="admin-link" id="adminLink">Arrangörsinloggning</button>
     </div>
   </footer>
 
+  <!-- Arrangörsinloggning -->
+  <div class="modal-backdrop" id="adminModal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="adminModalTitle">
+      <h3 id="adminModalTitle">Arrangörsinloggning</h3>
+      <p class="muted">Logga in för att låsa startfältet, ta bort anmälningar och ändra inställningar.</p>
+      <form id="adminForm" autocomplete="on">
+        <label class="field">
+          <span class="label-text">E-post</span>
+          <input type="email" id="adminEmail" autocomplete="username" />
+        </label>
+        <label class="field">
+          <span class="label-text">Lösenord</span>
+          <input type="password" id="adminPassword" autocomplete="current-password" />
+        </label>
+        <p class="hint warn" id="adminError"></p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="adminCancelBtn">Avbryt</button>
+          <button type="submit" class="btn btn-primary" id="adminLoginBtn">Logga in</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app.js"></script>
 </body>
 </html>

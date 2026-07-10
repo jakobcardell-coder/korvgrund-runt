@@ -6,12 +6,14 @@
 'use strict';
 
 const KMH_PER_KNOT = 1.852;
-const STORAGE_KEY = 'korvgrundrunt.v2';
-const ADMIN_FLAG = 'korvgrundrunt.admin';
-// Lösenord/nyckel för arrangörsläge. Byt gärna till något eget.
-// OBS: på en ren statisk sida är detta ett enkelt skydd — riktig behörighet
-// läggs server-sidan när databasen (Supabase) kopplas på.
-const ADMIN_KEY = 'korvgrund2026';
+
+/* Delad databas (Supabase). anon-nyckeln är publik och säker att ligga i
+   webbläsaren — behörighet styrs server-sidan av Row Level Security:
+   alla får läsa och anmäla sig, men bara inloggad arrangör får ta bort,
+   låsa och ändra inställningar. */
+const SUPABASE_URL = 'https://ewpqzzaxsbngiemdvgts.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV3cHF6emF4c2JuZ2llbWR2Z3RzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3MDQ0OTYsImV4cCI6MjA5OTI4MDQ5Nn0.Rmn8FdGbhF2SUmkqowoAlLLMqs5NiYPQh8KuZyrgPGE';
+const sb = (window.supabase) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 const knotsToKmh = (kn) => kn * KMH_PER_KNOT;
 const kmhToKnots = (kmh) => kmh / KMH_PER_KNOT;
@@ -177,24 +179,71 @@ function fmtDurationMin(min) {
 }
 
 /* ============================================================
-   4. PERSISTENS
+   4. DELAD DATA (Supabase i realtid)
    ============================================================ */
-const defaultState = () => ({
+let state = {
   settings: { distanceNm: 4.6, firstStart: '13:00:00', maxDevPct: 20 },
   locked: false,
   entries: [],
-});
-function loadState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultState();
-    const p = JSON.parse(raw);
-    return { ...defaultState(), ...p, settings: { ...defaultState().settings, ...(p.settings || {}) } };
-  } catch { return defaultState(); }
-}
-function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+};
 
-let state = loadState();
+function rowToEntry(r) {
+  return {
+    id: r.id, name: r.name, boatName: r.boat_name, category: r.category,
+    boatModel: r.boat_model, engineModel: r.engine_model,
+    enginePower: r.engine_power, weightKg: r.weight_kg, speedKnots: Number(r.speed_knots),
+  };
+}
+
+async function loadFromDb() {
+  if (!sb) { showDbError(); return; }
+  try {
+    const [rs, regs] = await Promise.all([
+      sb.from('race_state').select('*').eq('id', 1).single(),
+      sb.from('registrations').select('*').order('created_at', { ascending: true }),
+    ]);
+    if (rs.error) throw rs.error;
+    if (regs.error) throw regs.error;
+    state.settings = {
+      distanceNm: Number(rs.data.distance_nm),
+      firstStart: rs.data.first_start,
+      maxDevPct: rs.data.max_dev_pct,
+    };
+    state.locked = !!rs.data.locked;
+    state.entries = (regs.data || []).map(rowToEntry);
+    refreshSettingsInputs();
+    renderAll();
+  } catch (e) {
+    showDbError();
+  }
+}
+
+function subscribeRealtime() {
+  if (!sb) return;
+  sb.channel('korvgrund-runt')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'registrations' }, loadFromDb)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'race_state' }, loadFromDb)
+    .subscribe();
+}
+
+async function updateRaceState(patch) {
+  if (!sb || !isAdmin()) return;
+  const { error } = await sb.from('race_state').update(patch).eq('id', 1);
+  if (error) { alert('Kunde inte spara: ' + error.message); return; }
+  await loadFromDb();
+}
+
+function refreshSettingsInputs() {
+  if (document.activeElement !== el.distanceNm) el.distanceNm.value = state.settings.distanceNm;
+  if (document.activeElement !== el.firstStart) el.firstStart.value = state.settings.firstStart;
+  if (document.activeElement !== el.maxDev) el.maxDev.value = state.settings.maxDevPct;
+}
+
+function showDbError() {
+  if (!el.statusBanner) return;
+  el.statusBanner.className = 'status-banner status-locked';
+  el.statusBanner.innerHTML = '<span class="txt"><b>Kunde inte ansluta till anmälningsdatabasen.</b> Kontrollera nätverket och ladda om sidan.</span>';
+}
 
 /* ============================================================
    5. DOM
@@ -212,6 +261,8 @@ const el = {
   listTitle: $('listTitle'), listSub: $('listSub'), listBadge: $('listBadge'), listCount: $('listCount'),
   fineprint: $('fineprint'), listCard: $('listCard'),
   nav: $('siteNav'), navToggle: $('navToggle'), navLinks: $('navLinks'), adminLink: $('adminLink'),
+  adminModal: $('adminModal'), adminForm: $('adminForm'), adminEmail: $('adminEmail'),
+  adminPassword: $('adminPassword'), adminLoginBtn: $('adminLoginBtn'), adminCancelBtn: $('adminCancelBtn'), adminError: $('adminError'),
 };
 
 let pendingEstimate = null; // fryst systemförslag att validera mot
@@ -296,26 +347,21 @@ function renderAll() { renderStatus(); renderLockState(); renderStartList(); }
 /* ============================================================
    7. HÄNDELSER
    ============================================================ */
-function initInputs() {
-  el.distanceNm.value = state.settings.distanceNm;
-  el.firstStart.value = state.settings.firstStart;
-  el.maxDev.value = state.settings.maxDevPct;
-}
-el.distanceNm.addEventListener('input', () => {
+el.distanceNm.addEventListener('change', () => {
   if (!isAdmin()) return;
   const v = parseFloat(el.distanceNm.value);
-  if (v > 0) { state.settings.distanceNm = v; saveState(); renderStartList(); }
+  if (v > 0) updateRaceState({ distance_nm: v });
 });
-el.firstStart.addEventListener('input', () => {
+el.firstStart.addEventListener('change', () => {
   if (!isAdmin()) return;
-  const v = el.firstStart.value || '13:00:00';
-  state.settings.firstStart = v.length === 5 ? v + ':00' : v;
-  saveState(); renderStartList();
+  let v = el.firstStart.value || '13:00:00';
+  if (v.length === 5) v += ':00';
+  updateRaceState({ first_start: v });
 });
-el.maxDev.addEventListener('input', () => {
+el.maxDev.addEventListener('change', () => {
   if (!isAdmin()) return;
   const v = parseInt(el.maxDev.value, 10);
-  if (v >= 0 && v <= 90) { state.settings.maxDevPct = v; saveState(); }
+  if (v >= 0 && v <= 90) updateRaceState({ max_dev_pct: v });
 });
 
 el.category.addEventListener('change', toggleJetski);
@@ -381,7 +427,7 @@ function updateAdjust() {
   }
 }
 
-el.confirmBtn.addEventListener('click', () => {
+el.confirmBtn.addEventListener('click', async () => {
   if (state.locked || !pendingEstimate) return;
   const knots = parseFloat(el.confirmKnots.value);
   const name = el.name.value.trim();
@@ -390,18 +436,29 @@ el.confirmBtn.addEventListener('click', () => {
   if (!boatName) { el.boatName.focus(); return; }
   const check = validateConfirmed(knots, pendingEstimate.knots, state.settings.maxDevPct);
   if (!check.ok) { updateAdjust(); return; }
+  if (!sb) { el.adjustKmh.textContent = 'Ingen databasanslutning.'; el.adjustKmh.className = 'hint warn'; return; }
 
-  state.entries.push({
-    id: 'e' + Date.now() + Math.floor(Math.random() * 1000),
-    name, boatName, category: el.category.value,
-    boatModel: el.boatModel.value.trim(), engineModel: el.engineModel.value.trim(),
-    enginePower: el.category.value === 'jetski' ? null : (parseInt(el.enginePower.value, 10) || null),
-    weightKg: el.category.value === 'jetski' ? null : (parseInt(el.weightKg.value, 10) || null),
-    speedKnots: round1(knots),
-  });
-  saveState();
+  const isJet = el.category.value === 'jetski';
+  const row = {
+    name, boat_name: boatName, category: el.category.value,
+    boat_model: el.boatModel.value.trim() || null,
+    engine_model: el.engineModel.value.trim() || null,
+    engine_power: isJet ? null : (parseInt(el.enginePower.value, 10) || null),
+    weight_kg: isJet ? null : (parseInt(el.weightKg.value, 10) || null),
+    speed_knots: round1(knots),
+  };
+  el.confirmBtn.disabled = true;
+  const { error } = await sb.from('registrations').insert(row);
+  el.confirmBtn.disabled = false;
+  if (error) {
+    el.adjustKmh.textContent = state.locked
+      ? 'Anmälan är stängd — startfältet är låst.'
+      : ('Kunde inte spara anmälan: ' + error.message);
+    el.adjustKmh.className = 'hint warn';
+    return;
+  }
   resetForm();
-  renderAll();
+  await loadFromDb();
   document.getElementById('startlista').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 
@@ -414,50 +471,60 @@ function resetForm() {
   toggleJetski();
 }
 
-function removeEntry(id) {
-  if (state.locked || !isAdmin()) return;
-  state.entries = state.entries.filter((e) => e.id !== id);
-  saveState(); renderAll();
+async function removeEntry(id) {
+  if (state.locked || !isAdmin() || !sb) return;
+  const { error } = await sb.from('registrations').delete().eq('id', id);
+  if (error) { alert('Kunde inte ta bort: ' + error.message); return; }
+  await loadFromDb();
 }
 
-/* ---------- Admin-läge ---------- */
-function isAdmin() {
-  try { return localStorage.getItem(ADMIN_FLAG) === '1'; } catch { return false; }
-}
-function setAdmin(on) {
-  try { on ? localStorage.setItem(ADMIN_FLAG, '1') : localStorage.removeItem(ADMIN_FLAG); } catch {}
-  applyAdmin();
-}
+/* ---------- Admin (Supabase Auth: e-post + lösenord) ---------- */
+let adminSession = null;
+function isAdmin() { return !!adminSession; }
 function applyAdmin() {
   document.body.classList.toggle('admin', isAdmin());
   if (el.adminLink) el.adminLink.textContent = isAdmin() ? 'Logga ut arrangör' : 'Arrangörsinloggning';
 }
-function initAdmin() {
-  // Aktivera via länk ?admin=NYCKEL (t.ex. bokmärke för arrangören)
-  try {
-    const p = new URLSearchParams(location.search);
-    if (p.get('admin') === ADMIN_KEY) {
-      setAdmin(true);
-      p.delete('admin');
-      const qs = p.toString();
-      history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash);
-    }
-  } catch {}
+function openAdminModal() {
+  el.adminError.textContent = '';
+  el.adminEmail.value = '';
+  el.adminPassword.value = '';
+  el.adminModal.hidden = false;
+  el.adminEmail.focus();
+}
+function closeAdminModal() { el.adminModal.hidden = true; }
+async function submitAdminLogin() {
+  if (!sb) return;
+  const email = el.adminEmail.value.trim();
+  const password = el.adminPassword.value;
+  if (!email || !password) { el.adminError.textContent = 'Fyll i e-post och lösenord.'; return; }
+  el.adminLoginBtn.disabled = true;
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  el.adminLoginBtn.disabled = false;
+  if (error) { el.adminError.textContent = 'Inloggning misslyckades. Kontrollera uppgifterna.'; return; }
+  closeAdminModal();
+}
+async function onAdminLinkClick() {
+  if (!sb) return;
+  if (isAdmin()) { await sb.auth.signOut(); return; }
+  openAdminModal();
+}
+async function initAdmin() {
+  if (el.adminLink) el.adminLink.addEventListener('click', onAdminLinkClick);
+  if (el.adminForm) el.adminForm.addEventListener('submit', (e) => { e.preventDefault(); submitAdminLogin(); });
+  if (el.adminCancelBtn) el.adminCancelBtn.addEventListener('click', closeAdminModal);
+  if (el.adminModal) el.adminModal.addEventListener('click', (e) => { if (e.target === el.adminModal) closeAdminModal(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && el.adminModal && !el.adminModal.hidden) closeAdminModal(); });
+  if (!sb) { applyAdmin(); return; }
+  try { const { data } = await sb.auth.getSession(); adminSession = data.session; } catch {}
   applyAdmin();
-  if (el.adminLink) el.adminLink.addEventListener('click', () => {
-    if (isAdmin()) { setAdmin(false); renderAll(); return; }
-    const pass = prompt('Lösenord för arrangör:');
-    if (pass == null) return;
-    if (pass === ADMIN_KEY) { setAdmin(true); renderAll(); }
-    else alert('Fel lösenord.');
-  });
+  sb.auth.onAuthStateChange((_ev, session) => { adminSession = session; applyAdmin(); renderAll(); });
 }
 
 el.lockBtn.addEventListener('click', () => {
   if (!isAdmin()) return;
   if (!state.locked && state.entries.length === 0) return;
-  state.locked = !state.locked;
-  saveState(); renderAll();
+  updateRaceState({ locked: !state.locked });
 });
 el.printBtn.addEventListener('click', () => window.print());
 
@@ -485,8 +552,10 @@ if (heroVideo) {
 /* ============================================================
    8. INIT
    ============================================================ */
-initInputs();
+refreshSettingsInputs();
 toggleJetski();
 onScroll();
 initAdmin();
 renderAll();
+loadFromDb();
+subscribeRealtime();
