@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Korvgrund Runt — Skärgårdsregatta med handikappstart</title>
+  <meta name="description" content="Korvgrund Runt är en handikappberäknad båtregatta. Tisdag 14 juli, start 13:00. Anmäl dig och få din individuella starttid." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ===== Delade SVG-definitioner (båt + gradienter) ===== -->
+  <svg class="svg-defs" width="0" height="0" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="gradSky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#eef6fc" />
+        <stop offset="0.55" stop-color="#dcecf7" />
+        <stop offset="1" stop-color="#cfe6f3" />
+      </linearGradient>
+      <linearGradient id="gradSea" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#a9d6ea" />
+        <stop offset="0.5" stop-color="#79b9d8" />
+        <stop offset="1" stop-color="#4d95bd" />
+      </linearGradient>
+      <radialGradient id="gradSun" cx="0.5" cy="0.5" r="0.5">
+        <stop offset="0" stop-color="#fff7e6" stop-opacity="0.95" />
+        <stop offset="1" stop-color="#fff7e6" stop-opacity="0" />
+      </radialGradient>
+
+      <!-- Racande motorbåt (silhuett med guldrand och svall) -->
+      <g id="rboat">
+        <path class="boat-wake" d="M-46 80 C 4 74 26 82 68 79 C 34 86 -2 88 -46 84 Z" fill="#ffffff" opacity="0.55"/>
+        <path d="M12 70 L170 58 C190 56 206 49 216 34 C211 51 200 63 176 67 L36 75 C24 75 14 74 12 70 Z" fill="var(--boat, #123048)"/>
+        <path d="M22 66 L172 60" stroke="var(--boat-stripe, #c9a35d)" stroke-width="2.6" fill="none" stroke-linecap="round" opacity="0.95"/>
+        <path d="M92 60 L126 57 L118 41 L98 44 Z" fill="var(--boat, #123048)"/>
+        <path d="M99 45 L116 43 L120 55 L96 58 Z" fill="var(--boat-glass, #dff1fb)" opacity="0.6"/>
+        <g fill="#ffffff">
+          <circle cx="206" cy="40" r="6.5"/><circle cx="215" cy="31" r="4"/>
+          <circle cx="199" cy="33" r="4.8"/><circle cx="212" cy="47" r="3.6"/>
+          <circle cx="221" cy="38" r="3"/>
+        </g>
+      </g>
+    </defs>
+  </svg>
+
+  <!-- ===== Navigering ===== -->
+  <header class="nav" id="siteNav">
+    <div class="nav-inner">
+      <a class="brand" href="#hero">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" width="28" height="28">
+            <path d="M16 3 L16 24" stroke="currentColor" stroke-width="1.6"/>
+            <path d="M16 6 L27 15 L16 15 Z" fill="currentColor"/>
+            <path d="M6 24 h20 l-3 4 h-14 z" fill="currentColor"/>
+          </svg>
+        </span>
+        <span class="brand-text">Korvgrund&nbsp;Runt</span>
+      </a>
+      <nav class="nav-links" id="navLinks">
+        <a href="#om">Racet</a>
+        <a href="#banan">Banan</a>
+        <a href="#anmalan">Anmälan</a>
+        <a href="#startlista">Startlista</a>
+        <a href="#anmalan" class="nav-cta">Anmäl dig</a>
+      </nav>
+      <button class="nav-toggle" id="navToggle" aria-label="Meny" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ===== Hero med animerad regattascen ===== -->
+  <section class="hero" id="hero">
+    <div class="hero-scene" aria-hidden="true">
+      <video class="hero-media" autoplay muted loop playsinline preload="auto" poster="__HERO_POSTER__" aria-label="Racerbåt i full fart">
+        <source src="assets/hero.mp4" type="video/mp4" />
+      </video>
+      <div class="hero-veil"></div>
+    </div>
+
+    <div class="hero-content">
+      <p class="hero-kicker">Hälsinglands svar på Gotland Runt</p>
+      <h1 class="hero-title">Korvgrund&nbsp;Runt</h1>
+      <p class="hero-date"><span class="dot"></span> Tisdag 14 juli · Start kl 13:00</p>
+      <p class="hero-sub">Ut från startlinjen, runt ön Korvgrund och hem igen — 4,6 nautiska mil.
+        Varje båt får sin egen starttid så att skicklighet, inte hästkrafter, avgör vem som vinner.
+        Tävlande som åskådare — alla är hjärtligt välkomna.</p>
+      <div class="hero-cta">
+        <a href="#anmalan" class="btn btn-primary">Anmäl din båt</a>
+        <a href="#startlista" class="btn btn-outline">Se startlistan</a>
+      </div>
+    </div>
+    <a class="scroll-cue" href="#om" aria-label="Scrolla ner">
+      <span></span>
+    </a>
+  </section>
+
+  <!-- ===== Om racet ===== -->
+  <section class="section" id="om">
+    <div class="wrap">
+      <div class="section-head center">
+        <p class="eyebrow">Om tävlingen</p>
+        <h2>En kappsegling där alla har en ärlig chans</h2>
+        <p class="lead">Korvgrund Runt är Hälsinglands svar på Gotland Runt — en handikappberäknad
+          regatta som samlar allt från kvicka aluminiumbåtar till vattenskotrar. Vi beräknar en
+          individuell starttid för varje ekipage: den snabbaste båten startar sist, de långsammare
+          tidigare. Håller alla sin toppfart korsar de mållinjen i samma ögonblick. Då avgörs racet
+          av sjömanskap och nerv, inte av motorstyrka.</p>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat">
+          <span class="stat-num">4,6 <em>nm</em></span>
+          <span class="stat-label">Total bana, tur och retur</span>
+        </div>
+        <div class="stat">
+          <span class="stat-num">2,3 <em>nm</em></span>
+          <span class="stat-label">Enkel väg till Korvgrund</span>
+        </div>
+        <div class="stat">
+          <span class="stat-num">13:00</span>
+          <span class="stat-label">Första start, 14 juli</span>
+        </div>
+        <div class="stat">
+          <span class="stat-num">Alla</span>
+          <span class="stat-label">tävlar mot alla — handikappet ger försprånget</span>
+        </div>
+      </div>
+
+      <div class="feature-grid">
+        <article class="feature">
+          <span class="feature-ico" aria-hidden="true">⚖︎</span>
+          <h3>Rättvist handikapp</h3>
+          <p>Starttiden räknas ut från din förväntade toppfart. Alla ska teoretiskt gå i mål samtidigt.</p>
+        </article>
+        <article class="feature">
+          <span class="feature-ico" aria-hidden="true">◷</span>
+          <h3>Din egen starttid</h3>
+          <p>Du får både en relativ tid före snabbaste båt och ett exakt klockslag att lämna linjen på.</p>
+        </article>
+        <article class="feature">
+          <span class="feature-ico" aria-hidden="true">⚓</span>
+          <h3>Alla båtar med</h3>
+          <p>Motorbåt, RIB eller vattenskoter — systemet uppskattar farten och du bekräftar den.</p>
+        </article>
+      </div>
+
+      <div class="callout">
+        <span class="callout-ico" aria-hidden="true">⛴</span>
+        <div class="callout-body">
+          <h3>Välkommen ombord på MS Sjöstjärnan</h3>
+          <p>MS Sjöstjärnan lägger till ute vid startplatsen. Du är hjärtligt välkommen även om du
+            inte är med och tävlar — kom och heja fram fältet som åskådare! Ta gärna med något lättare
+            tilltugg; grill finns ombord på Sjöstjärnan.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Banan ===== -->
+  <section class="section alt" id="banan">
+    <div class="wrap course-layout">
+      <div class="course-text">
+        <p class="eyebrow">Banan</p>
+        <h2>Ut, runt Korvgrund och hem</h2>
+        <p class="lead">Fältet startar från en fast startlinje på vattnet nordost om ön Örarna,
+          går 2,3 nm ut till ön Korvgrund, rundar den och tar samma väg tillbaka. Total distans
+          4,6 distansminuter. Mållinjen är densamma som startlinjen.</p>
+        <ul class="course-list">
+          <li><span class="marker start">1</span> Start &amp; mål — linje nordost om Örarna</li>
+          <li><span class="marker turn">2</span> Korvgrund — rundas 2,3 nm ut</li>
+          <li><span class="marker finish">3</span> Retur — 2,3 nm hem</li>
+        </ul>
+      </div>
+      <div class="course-map">
+        <svg viewBox="0 0 460 320" role="img" aria-label="Karta över banan">
+          <rect x="0" y="0" width="460" height="320" rx="18" fill="url(#gradSea)" opacity="0.18"/>
+          <path d="M138 236 C 232 150 322 118 400 82" fill="none" stroke="#1c5a86" stroke-width="2.4" stroke-dasharray="2 9" stroke-linecap="round"/>
+          <path d="M146 246 C 244 168 332 140 402 98" fill="none" stroke="#c9a35d" stroke-width="2.4" stroke-dasharray="2 9" stroke-linecap="round"/>
+          <!-- ön Örarna -->
+          <ellipse cx="62" cy="272" rx="30" ry="12" fill="#e7dcc4"/>
+          <path d="M36 270 q7 -12 26 -12 q22 0 28 11 q-27 8 -55 1 z" fill="#a9cf98"/>
+          <ellipse cx="104" cy="289" rx="14" ry="6" fill="#e7dcc4"/>
+          <path d="M92 288 q4 -7 13 -7 q11 0 14 6 q-14 4 -27 1 z" fill="#a9cf98"/>
+          <rect x="60.5" y="252" width="3" height="9" fill="#7a5a3a"/>
+          <path d="M62 245 l6 12 h-12 z" fill="#3a834e"/>
+          <text x="30" y="308" class="map-label">Örarna</text>
+          <!-- start/mållinje — nordost om Örarna -->
+          <line x1="124" y1="222" x2="150" y2="248" stroke="#0f2c47" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="124" cy="222" r="5.5" fill="#0f2c47"/>
+          <circle cx="150" cy="248" r="5.5" fill="#0f2c47"/>
+          <text x="120" y="214" text-anchor="end" class="map-label">Start · Mål</text>
+          <!-- ön Korvgrund -->
+          <ellipse cx="406" cy="90" rx="32" ry="13" fill="#e7dcc4"/>
+          <path d="M380 88 q7 -13 26 -13 q21 0 27 12 q-26 8 -53 1 z" fill="#a9cf98"/>
+          <rect x="404.5" y="66" width="3" height="11" fill="#7a5a3a"/>
+          <path d="M406 57 l7 15 h-14 z" fill="#2f6b3f"/>
+          <path d="M406 63 l6 11 h-12 z" fill="#3a834e"/>
+          <text x="372" y="49" class="map-label">Korvgrund</text>
+          <!-- distansetiketter -->
+          <text x="270" y="138" class="map-dist">2,3 nm</text>
+          <text x="318" y="212" class="map-dist gold">2,3 nm</text>
+          <g class="map-boat"><g transform="translate(198 196) scale(0.55) rotate(-28)"><use href="#rboat" style="--boat:#0f2c47;--boat-stripe:#c9a35d"/></g></g>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Actionband ===== -->
+  <section class="action-band" aria-label="Racing">
+    <div class="action-photo" role="img" aria-label="Racerbåtar i full fart över vågorna"></div>
+    <div class="action-veil"></div>
+    <div class="action-text">
+      <p class="eyebrow light">Alla mot alla</p>
+      <h2>Ingen klassindelning — bara handikapp</h2>
+      <p>Motorbåt, RIB eller vattenskoter: alla startar i samma race. Handikappsystemet räknar ut
+        exakt hur stort försprång varje ekipage får, så att den skickligaste vinner — inte den
+        starkaste motorn.</p>
+    </div>
+  </section>
+
+  <!-- ===== Anmälan ===== -->
+  <section class="section alt" id="anmalan">
+    <div class="wrap">
+      <div class="section-head center">
+        <p class="eyebrow">Anmälan</p>
+        <h2>Anmäl din båt till Korvgrund Runt</h2>
+        <p class="lead">Fyll i uppgifterna så föreslår vi din toppfart. Bekräfta eller finjustera den —
+          sedan får du din starttid direkt.</p>
+      </div>
+
+      <!-- Statusbanner -->
+      <div id="statusBanner" class="status-banner" role="status" aria-live="polite"></div>
+
+      <div class="panel-grid">
+        <!-- Anmälningsformulär -->
+        <div class="card form-card" id="formCard">
+          <form id="entryForm" autocomplete="off">
+            <div class="form-grid">
+              <label class="field">
+                <span class="label-text">Deltagarens namn</span>
+                <input type="text" id="name" required placeholder="För- och efternamn" />
+              </label>
+              <label class="field">
+                <span class="label-text">Båtnamn</span>
+                <input type="text" id="boatName" required placeholder="t.ex. Havsörnen" />
+                <span class="hint">Fritt valt namn — obligatoriskt.</span>
+              </label>
+              <label class="field">
+                <span class="label-text">Farkosttyp</span>
+                <select id="category">
+                  <option value="aluminium">Aluminiumbåt (Silver, Buster …)</option>
+                  <option value="planing">Planande båt (glasfiber)</option>
+                  <option value="sport">Sport / snabb planande</option>
+                  <option value="rib">RIB</option>
+                  <option value="displacement">Deplacementbåt (långsam)</option>
+                  <option value="jetski">Vattenskoter</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="label-text">Båtmodell</span>
+                <input type="text" id="boatModel" placeholder="t.ex. Silver Fox BR" />
+              </label>
+              <label class="field">
+                <span class="label-text">Motormodell</span>
+                <input type="text" id="engineModel" placeholder="t.ex. Mercury F60" />
+              </label>
+              <label class="field" id="powerField">
+                <span class="label-text">Motoreffekt (hk)</span>
+                <input type="number" id="enginePower" min="1" step="1" inputmode="numeric" placeholder="60" />
+              </label>
+              <label class="field" id="weightField">
+                <span class="label-text">Vikt (kg) <span class="opt">valfritt</span></span>
+                <input type="number" id="weightKg" min="1" step="10" inputmode="numeric" placeholder="förifylls per typ" />
+              </label>
+              <label class="field span-2 jetski-only" id="jetskiField" hidden>
+                <span class="label-text">Toppfart vattenskoter (km/h)</span>
+                <input type="number" id="jetskiKmh" min="1" step="1" inputmode="numeric" placeholder="t.ex. 100" />
+                <span class="hint">Räknas om internt till knop (km/h ÷ 1,852).</span>
+              </label>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary" id="estimateBtn">Beräkna toppfart</button>
+            </div>
+          </form>
+
+          <!-- Fartförslag -->
+          <div class="estimate-panel" id="estimatePanel" hidden>
+            <div class="estimate-headline">
+              <span class="est-label">Föreslagen toppfart</span>
+              <span class="est-source" id="estSource"></span>
+            </div>
+            <div class="estimate-figure">
+              <div class="knots-big"><span id="knotsValue">0</span><span class="unit">kn</span></div>
+              <div class="kmh-small">≈ <span id="kmhValue">0</span> km/h</div>
+            </div>
+            <div class="estimate-adjust">
+              <label class="field compact">
+                <span class="label-text">Bekräfta eller justera (knop)</span>
+                <input type="number" id="confirmKnots" min="0.1" step="0.1" inputmode="decimal" />
+                <span class="hint" id="adjustKmh"></span>
+              </label>
+              <div class="estimate-buttons">
+                <button type="button" class="btn btn-ghost" id="cancelEstimate">Avbryt</button>
+                <button type="button" class="btn btn-primary" id="confirmBtn">Bekräfta &amp; anmäl</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Arrangörsinställningar -->
+        <aside class="card settings-card" id="settingsCard">
+          <h3 class="mini-head"><span class="ico">⚙</span> Arrangör</h3>
+          <label class="field">
+            <span class="label-text">Total racesträcka (nm)</span>
+            <input type="number" id="distanceNm" min="0.1" step="0.1" inputmode="decimal" />
+            <span class="hint">Tur och retur. Standard 4,6 nm.</span>
+          </label>
+          <label class="field">
+            <span class="label-text">Första start (klockslag)</span>
+            <input type="time" id="firstStart" step="1" />
+            <span class="hint">14 juli — långsammaste båt går först.</span>
+          </label>
+          <label class="field">
+            <span class="label-text">Tillåten sänkning under förslag (%)</span>
+            <input type="number" id="maxDev" min="0" max="90" step="1" inputmode="numeric" />
+            <span class="hint">Skydd mot orimligt låg angiven fart. Standard 20 %.</span>
+          </label>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Startlista ===== -->
+  <section class="section" id="startlista">
+    <div class="wrap">
+      <div class="section-head center">
+        <p class="eyebrow">Startordning</p>
+        <h2 id="listTitle">Startfält</h2>
+        <p class="lead" id="listSub">Starttider räknas om automatiskt vid varje anmälan.</p>
+      </div>
+
+      <div class="card list-card" id="listCard">
+        <div class="list-head">
+          <div class="list-head-txt">
+            <span class="list-badge" id="listBadge">Öppet</span>
+            <span class="list-count" id="listCount"></span>
+          </div>
+          <div class="list-controls">
+            <button type="button" class="btn btn-gold" id="lockBtn">Lås startfältet</button>
+            <button type="button" class="btn btn-ghost" id="printBtn" hidden>Skriv ut</button>
+          </div>
+        </div>
+
+        <div id="emptyState" class="empty-state">
+          <div class="empty-mark" aria-hidden="true">⛵</div>
+          <p>Inga anmälda ännu. Fyll i formuläret ovan för att lägga till första båten i fältet.</p>
+        </div>
+
+        <div class="table-scroll">
+          <table class="start-table" id="startTable" hidden>
+            <thead>
+              <tr>
+                <th class="col-place">Plats</th>
+                <th class="col-name">Deltagare</th>
+                <th class="col-boat">Båt &amp; motor</th>
+                <th class="col-speed">Toppfart</th>
+                <th class="col-rel">Före snabbaste</th>
+                <th class="col-clock">Startklocka</th>
+                <th class="col-act no-print"></th>
+              </tr>
+            </thead>
+            <tbody id="startBody"></tbody>
+          </table>
+        </div>
+        <p class="fineprint" id="fineprint"></p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-foot">
+    <div class="wrap foot-inner">
+      <div class="foot-brand">Korvgrund&nbsp;Runt</div>
+      <p>Handikappberäknad skärgårdsregatta · Tisdag 14 juli, start 13:00</p>
+      <p class="foot-fine">Anmälningar sparas lokalt i din webbläsare.</p>
+      <p class="foot-credit">Foto: Roberto (CC BY-SA 4.0) &amp; Rennbootarchiv Schulze (CC BY-SA 3.0) via Wikimedia Commons.</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
