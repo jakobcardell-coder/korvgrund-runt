@@ -784,7 +784,7 @@ body:not(.admin) .panel-grid { grid-template-columns: 1fr; }
               </label>
               <label class="field" id="weightField">
                 <span class="label-text">Vikt (kg) <span class="opt">valfritt</span></span>
-                <input type="number" id="weightKg" min="1" step="10" inputmode="numeric" placeholder="förifylls per typ" />
+                <input type="number" id="weightKg" min="1" step="1" inputmode="numeric" placeholder="förifylls per typ" />
               </label>
               <label class="field span-2 jetski-only" id="jetskiField" hidden>
                 <span class="label-text">Toppfart vattenskoter (km/h)</span>
@@ -1164,7 +1164,7 @@ function renderStartList() {
         </td>
         <td class="col-boat">
           <div class="cell-boat">${escapeHtml(e.boatModel || CATEGORY_LABEL[e.category] || '—')}</div>
-          <div class="cell-boat eng">${escapeHtml(e.engineModel || '')}${e.enginePower ? ` · ${e.enginePower} hk` : ''}</div>
+          <div class="cell-boat eng">${escapeHtml(e.engineModel || '')}${e.enginePower ? ` · ${e.enginePower} hk` : ''}${e.weightKg ? ` · ${e.weightKg} kg` : ''}</div>
         </td>
         <td class="col-speed">
           <div class="speed-knots">${sv(round1(e.speedKnots))} <span class="u">kn</span></div>
@@ -1300,6 +1300,7 @@ el.confirmBtn.addEventListener('click', () => {
     name, boatName, category: el.category.value,
     boatModel: el.boatModel.value.trim(), engineModel: el.engineModel.value.trim(),
     enginePower: el.category.value === 'jetski' ? null : (parseInt(el.enginePower.value, 10) || null),
+    weightKg: el.category.value === 'jetski' ? null : (parseInt(el.weightKg.value, 10) || null),
     speedKnots: round1(knots),
   });
   saveState();

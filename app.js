@@ -260,7 +260,7 @@ function renderStartList() {
         </td>
         <td class="col-boat">
           <div class="cell-boat">${escapeHtml(e.boatModel || CATEGORY_LABEL[e.category] || '—')}</div>
-          <div class="cell-boat eng">${escapeHtml(e.engineModel || '')}${e.enginePower ? ` · ${e.enginePower} hk` : ''}</div>
+          <div class="cell-boat eng">${escapeHtml(e.engineModel || '')}${e.enginePower ? ` · ${e.enginePower} hk` : ''}${e.weightKg ? ` · ${e.weightKg} kg` : ''}</div>
         </td>
         <td class="col-speed">
           <div class="speed-knots">${sv(round1(e.speedKnots))} <span class="u">kn</span></div>
@@ -396,6 +396,7 @@ el.confirmBtn.addEventListener('click', () => {
     name, boatName, category: el.category.value,
     boatModel: el.boatModel.value.trim(), engineModel: el.engineModel.value.trim(),
     enginePower: el.category.value === 'jetski' ? null : (parseInt(el.enginePower.value, 10) || null),
+    weightKg: el.category.value === 'jetski' ? null : (parseInt(el.weightKg.value, 10) || null),
     speedKnots: round1(knots),
   });
   saveState();
