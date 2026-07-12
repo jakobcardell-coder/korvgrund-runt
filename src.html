@@ -315,6 +315,11 @@
                 <span class="hint">Fritt valt namn — obligatoriskt.</span>
               </label>
               <label class="field">
+                <span class="label-text">Mobilnummer <span class="opt">valfritt</span></span>
+                <input type="tel" id="phone" autocomplete="tel" inputmode="tel" placeholder="07…" />
+                <span class="hint">Används bara för att skicka din personliga live-länk via SMS.</span>
+              </label>
+              <label class="field">
                 <span class="label-text">Farkosttyp</span>
                 <select id="category">
                   <option value="aluminium">Aluminiumbåt (Silver, Buster …)</option>
@@ -498,6 +503,13 @@
           båt upp på kartan för alla — ha sidan öppen med skärmen på ombord.</p>
       </div>
 
+      <!-- Åskådarläge + delbar åskådarlänk -->
+      <div class="live-toolbar">
+        <button type="button" class="btn btn-ghost live-mode-btn" id="spectatorToggle" aria-pressed="false">👁 Åskådarläge</button>
+        <button type="button" class="btn btn-ghost btn-copy" id="spectatorShareBtn">Dela åskådarlänk</button>
+      </div>
+      <p class="live-toolbar-hint">Åskådarläge visar bara kartan och race-tavlan — perfekt för er på MS Sjöstjärnan och hemmapubliken. Länken öppnar sidan direkt i åskådarläge.</p>
+
       <!-- Dela din position -->
       <div class="card share-card" id="liveShare">
         <div class="share-idle" id="shareIdle">
@@ -546,8 +558,10 @@
         </div>
       </div>
 
-      <!-- Lista över spårade båtar -->
-      <ul class="live-list" id="liveList"></ul>
+      <!-- Race-tavla: rankad efter banprogress, med fart och ETA till mål -->
+      <h3 class="mini-head board-head" id="liveBoardHead" hidden></h3>
+      <ul class="live-list board" id="liveList"></ul>
+      <p class="ll-legend" id="llLegend" hidden>* Fart och ETA baseras på anmäld toppfart tills båtens GPS-fart kommit in.</p>
 
       <!-- Arrangörens kodlista (endast inloggad) -->
       <div class="card codes-card admin-only" id="liveCodes">

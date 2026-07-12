@@ -663,6 +663,12 @@ body:not(.admin) .panel-grid { grid-template-columns: 1fr; }
 }
 .cc-copy:hover { border-color: var(--gold-ink); color: var(--gold-ink); }
 .cc-copy.copied, .btn-copy.copied { border-color: var(--sea-deep); color: var(--sea-deep); background: #eaf4fb; }
+.cc-sms {
+  flex: 0 0 auto; font-family: var(--sans); font-size: 0.78rem; font-weight: 600;
+  padding: 5px 12px; border-radius: 30px; border: 1px solid var(--sea-deep);
+  background: var(--sea-deep); color: #fff; text-decoration: none; cursor: pointer; transition: 0.15s;
+}
+.cc-sms:hover { background: var(--navy); border-color: var(--navy); }
 
 .share-who { margin: 0 0 4px; font-size: 1.02rem; color: var(--navy-soft); }
 .share-who b { font-family: var(--serif); font-style: italic; font-size: 1.15rem; color: var(--sea-deep); }
@@ -758,3 +764,43 @@ body.admin .korv-admin.admin-only { display: block !important; }
   .infor-grid { grid-template-columns: 1fr; }
   .korv-grid, body:not(.admin) .korv-grid { grid-template-columns: 1fr; }
 }
+
+/* ===================== Följ live: åskådarläge + race-tavla ===================== */
+.live-toolbar { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin: 0 0 10px; }
+.live-mode-btn.on { background: var(--navy); color: #fff; border-color: var(--navy); }
+.live-toolbar-hint { text-align: center; color: var(--slate); font-size: 0.86rem; max-width: 620px; margin: 0 auto 22px; }
+
+.board-head { max-width: 640px; margin: 26px auto 12px; }
+
+/* Race-tavla — enkolumns rankad lista (åsidosätter grid-varianten ovan) */
+.live-list.board { display: flex; flex-direction: column; gap: 10px; max-width: 640px; }
+.live-list.board li {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px;
+  padding: 12px 16px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--paper);
+}
+.live-list.board li.stale { opacity: 0.6; }
+.live-list.board li.finished { border-color: var(--gold); background: #fffdf6; }
+.ll-rank {
+  font-family: var(--serif); font-weight: 700; font-size: 1.3rem; color: var(--sea-deep);
+  min-width: 26px; text-align: center; font-variant-numeric: tabular-nums;
+}
+.ll-main { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.live-list.board .ll-name { font-family: var(--serif); font-style: italic; font-size: 1.06rem; color: var(--navy); line-height: 1.1; }
+.ll-sub { display: flex; align-items: center; gap: 7px; font-size: 0.8rem; color: var(--slate); font-variant-numeric: tabular-nums; }
+.live-list.board .ll-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--coral); flex: none; }
+.live-list.board .ll-dot.stale { background: var(--slate); }
+.ll-bar { height: 5px; border-radius: 4px; background: var(--haze); overflow: hidden; }
+.ll-bar-fill { display: block; height: 100%; background: linear-gradient(90deg, var(--sea), var(--sea-deep)); border-radius: 4px; transition: width 0.6s ease; }
+.ll-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; text-align: right; white-space: nowrap; }
+.ll-eta { font-weight: 700; color: var(--navy); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.ll-eta.done { color: var(--gold-ink); }
+.ll-eta.muted { color: var(--slate); font-weight: 500; }
+.ll-pct { font-size: 0.76rem; color: var(--slate); font-variant-numeric: tabular-nums; }
+.ll-legend { max-width: 640px; margin: 10px auto 0; text-align: center; font-size: 0.76rem; color: var(--slate); }
+
+/* Åskådarläge: dölj delningskontroller, förstora kartan */
+body.spectator #liveShare,
+body.spectator .share-keepon,
+body.spectator .live-toolbar-hint { display: none !important; }
+body.spectator .map-card { max-width: 1120px; }
+body.spectator .live-map { height: clamp(420px, 74vh, 760px); }

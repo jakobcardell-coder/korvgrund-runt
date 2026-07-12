@@ -264,7 +264,7 @@ function showDbError() {
 const $ = (id) => document.getElementById(id);
 const el = {
   distanceNm: $('distanceNm'), firstStart: $('firstStart'), maxDev: $('maxDev'),
-  form: $('entryForm'), name: $('name'), boatName: $('boatName'), category: $('category'), boatModel: $('boatModel'),
+  form: $('entryForm'), name: $('name'), boatName: $('boatName'), phone: $('phone'), category: $('category'), boatModel: $('boatModel'),
   engineModel: $('engineModel'), enginePower: $('enginePower'), weightKg: $('weightKg'),
   jetskiField: $('jetskiField'), jetskiKmh: $('jetskiKmh'), powerField: $('powerField'), weightField: $('weightField'),
   estimatePanel: $('estimatePanel'), estSource: $('estSource'), knotsValue: $('knotsValue'), kmhValue: $('kmhValue'),
@@ -280,6 +280,7 @@ const el = {
   cdTime: $('cdTime'), cdTimeLabel: $('cdTimeLabel'), cdMeta: $('cdMeta'),
   thanksCode: $('thanksCode'), thanksCodeVal: $('thanksCodeVal'),
   liveMap: $('liveMap'), liveEmpty: $('liveEmpty'), liveList: $('liveList'),
+  spectatorToggle: $('spectatorToggle'), spectatorShareBtn: $('spectatorShareBtn'), liveBoardHead: $('liveBoardHead'),
   shareIdle: $('shareIdle'), sharePick: $('sharePick'), shareBoat: $('shareBoat'), shareCode: $('shareCode'),
   shareStartBtn: $('shareStartBtn'), shareHint: $('shareHint'), shareWho: $('shareWho'),
   thanksCopyBtn: $('thanksCopyBtn'),
@@ -528,6 +529,64 @@ function fmtAge(ms) {
   return `${Math.floor(s / 60)} min sedan`;
 }
 
+/* ---------- ETA & banprogress per båt ----------
+   Banan: start → Korvgrund (halva sträckan ut) → tillbaka till start/mål.
+   Vi vet inte vändpunktens koordinat, men kan räkna på avståndet från start:
+   på utvägen växer det mot ~halva banan, på hemvägen krymper det mot 0.
+   Ben (ut/hem) avgörs av kurs mot mål eller av att båten vänt från sin
+   yttersta punkt. Kräver bara datan som redan finns i boat_positions. */
+const MS_TO_KN = 1.94384;
+let boatMaxD = {}; // yttersta uppmätta avstånd från start per båt (nm)
+
+function haversineNm(la1, lo1, la2, lo2) {
+  const R = 3440.065, toRad = (d) => d * Math.PI / 180;
+  const dLa = toRad(la2 - la1), dLo = toRad(lo2 - lo1);
+  const a = Math.sin(dLa / 2) ** 2 + Math.cos(toRad(la1)) * Math.cos(toRad(la2)) * Math.sin(dLo / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+function bearingDeg(la1, lo1, la2, lo2) {
+  const toRad = (d) => d * Math.PI / 180, toDeg = (r) => r * 180 / Math.PI;
+  const y = Math.sin(toRad(lo2 - lo1)) * Math.cos(toRad(la2));
+  const x = Math.cos(toRad(la1)) * Math.sin(toRad(la2)) - Math.sin(toRad(la1)) * Math.cos(toRad(la2)) * Math.cos(toRad(lo2 - lo1));
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+function angDiff(a, b) { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; }
+function fmtHM(ms) {
+  const d = new Date(ms);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+function boatProgress(p) {
+  const total = state.settings.distanceNm || 4.6;
+  const dStart = haversineNm(p.lat, p.lng, RACE_CENTER[0], RACE_CENTER[1]);
+  const id = String(p.registration_id);
+  const maxD = Math.max(boatMaxD[id] || 0, dStart);
+  boatMaxD[id] = maxD;
+
+  const brg = bearingDeg(p.lat, p.lng, RACE_CENTER[0], RACE_CENTER[1]);
+  const headingReturning = (p.heading != null && p.speed != null && p.speed > 0.7)
+    ? angDiff(p.heading, brg) < 80 : false;
+  const recededReturning = maxD > 0.3 && dStart < maxD - 0.15;
+  const returning = headingReturning || recededReturning;
+
+  const progress = Math.max(0, Math.min(total, returning ? (total - dStart) : dStart));
+  const remaining = Math.max(0, total - progress);
+  const pct = total > 0 ? Math.round(progress / total * 100) : 0;
+
+  const gpsKn = (p.speed != null && p.speed > 0.5) ? p.speed * MS_TO_KN : null;
+  const reg = entryById(id);
+  const speedKn = gpsKn || (reg ? reg.speedKnots : null);
+
+  const finished = returning && dStart < 0.08;
+  let etaMin = null, etaClock = null;
+  if (!finished && speedKn && speedKn > 0.3 && remaining > 0.02) {
+    etaMin = remaining / speedKn * 60;
+    etaClock = Date.now() + etaMin * 60000;
+  }
+  const atStart = !returning && maxD < 0.1;
+  return { dStart, remaining, returning, progress, pct, speedKn, gpsKn, finished, atStart, etaMin, etaClock };
+}
+
 function renderLive() {
   const positions = state.positions || [];
   if (el.liveEmpty) el.liveEmpty.hidden = positions.length > 0;
@@ -559,16 +618,69 @@ function renderLive() {
 
 function renderLiveList() {
   if (!el.liveList) return;
-  const positions = (state.positions || []).slice()
-    .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
-  el.liveList.innerHTML = positions.map((p) => {
-    const age = Date.now() - new Date(p.updated_at).getTime();
+  const rows = (state.positions || []).map((p) => ({
+    p, prog: boatProgress(p), age: Date.now() - new Date(p.updated_at).getTime(),
+  }));
+  // Rankas efter hur långt i banan båten kommit; tysta (inaktuella) sist.
+  rows.sort((a, b) => {
+    const aStale = a.age > STALE_MS, bStale = b.age > STALE_MS;
+    if (aStale !== bStale) return aStale ? 1 : -1;
+    if (a.prog.finished !== b.prog.finished) return a.prog.finished ? -1 : 1;
+    return b.prog.progress - a.prog.progress;
+  });
+
+  if (el.liveBoardHead) {
+    const active = rows.filter((r) => r.age <= STALE_MS).length;
+    el.liveBoardHead.hidden = rows.length === 0;
+    el.liveBoardHead.textContent = rows.length
+      ? `Race-tavla · ${active} båt${active === 1 ? '' : 'ar'} live` : '';
+  }
+
+  let anyEstimated = false;
+  el.liveList.innerHTML = rows.map((r, i) => {
+    const { p, prog, age } = r;
     const stale = age > STALE_MS;
-    return `<li><span class="ll-dot ${stale ? 'stale' : ''}"></span>` +
-      `<span class="ll-name">${escapeHtml(boatLabel(p.registration_id))}</span>` +
-      `<span class="ll-age">${fmtAge(age)}</span></li>`;
+    const spd = prog.speedKn ? `${sv(round1(prog.speedKn))} kn` : '–';
+    if (prog.speedKn && !prog.gpsKn) anyEstimated = true;
+    const est = (prog.speedKn && !prog.gpsKn) ? '*' : '';
+    const eta = prog.finished
+      ? '<span class="ll-eta done">🏁 I mål</span>'
+      : prog.atStart ? '<span class="ll-eta muted">Vid start</span>'
+      : prog.etaClock ? `<span class="ll-eta">i mål ~${fmtHM(prog.etaClock)}</span>`
+      : '<span class="ll-eta muted">ETA –</span>';
+    return `<li class="ll-row${stale ? ' stale' : ''}${prog.finished ? ' finished' : ''}">` +
+      `<span class="ll-rank">${prog.finished ? '🏁' : i + 1}</span>` +
+      `<span class="ll-main">` +
+        `<span class="ll-name">${escapeHtml(boatLabel(p.registration_id))}</span>` +
+        `<span class="ll-sub"><span class="ll-dot${stale ? ' stale' : ''}"></span>${fmtAge(age)} · ${spd}${est}</span>` +
+        `<span class="ll-bar"><span class="ll-bar-fill" style="width:${prog.pct}%"></span></span>` +
+      `</span>` +
+      `<span class="ll-meta">${eta}<span class="ll-pct">${prog.pct}%</span></span>` +
+    `</li>`;
   }).join('');
+
+  if (el.liveList) {
+    const legend = el.liveList.nextElementSibling;
+    if (legend && legend.classList.contains('ll-legend')) legend.hidden = !anyEstimated;
+  }
 }
+
+/* ---------- Åskådarläge: rent titta-läge utan delningskontroller ---------- */
+let spectator = false;
+function applySpectator() {
+  document.body.classList.toggle('spectator', spectator);
+  if (el.spectatorToggle) {
+    el.spectatorToggle.setAttribute('aria-pressed', spectator ? 'true' : 'false');
+    el.spectatorToggle.classList.toggle('on', spectator);
+    el.spectatorToggle.innerHTML = spectator ? '👁 Åskådarläge på' : '👁 Åskådarläge';
+  }
+  if (liveMap) setTimeout(() => liveMap.invalidateSize(), 260);
+}
+function setSpectator(on) { spectator = on; applySpectator(); }
+if (el.spectatorToggle) el.spectatorToggle.addEventListener('click', () => setSpectator(!spectator));
+if (el.spectatorShareBtn) el.spectatorShareBtn.addEventListener('click', () => {
+  copyText(`${location.origin}${location.pathname}?akare=1#live`, el.spectatorShareBtn);
+});
 
 function renderShareControl() {
   if (!el.shareIdle) return;
@@ -670,21 +782,37 @@ document.addEventListener('visibilitychange', () => {
 if (el.shareStartBtn) el.shareStartBtn.addEventListener('click', startSharing);
 if (el.shareStopBtn) el.shareStopBtn.addEventListener('click', stopSharing);
 
+function smsHref(phone, link) {
+  const body = `Din länk för att följa & dela position i Korvgrund Runt: ${link}`;
+  const num = (phone || '').replace(/\s+/g, '');
+  // ?&body= är den mest kompatibla formen över iOS/Android.
+  return `sms:${num}?&body=${encodeURIComponent(body)}`;
+}
+
 async function loadCodes() {
   // Panelens synlighet styrs av CSS (body.admin .codes-card). Här fyller vi
   // bara i koderna när arrangören är inloggad.
   if (!el.codesList || !sb || !isAdmin()) return;
   try {
-    const { data, error } = await sb.from('boat_secrets').select('registration_id, code');
+    // phone-kolumnen kanske inte finns än (före utökad migration) — falla då tillbaka.
+    let res = await sb.from('boat_secrets').select('registration_id, code, phone');
+    if (res.error) res = await sb.from('boat_secrets').select('registration_id, code');
+    const { data, error } = res;
     if (error) throw error;
     const byId = {};
-    (data || []).forEach((r) => { byId[String(r.registration_id)] = r.code; });
+    (data || []).forEach((r) => { byId[String(r.registration_id)] = r; });
     el.codesList.innerHTML = currentStartList().map((e) => {
-      const code = byId[String(e.id)] || '—';
-      const copy = code === '—' ? '' :
-        `<button type="button" class="cc-copy" data-link="${escapeHtml(personalLink(e.id, code))}">Kopiera länk</button>`;
+      const rec = byId[String(e.id)] || {};
+      const code = rec.code || '—';
+      let actions = '';
+      if (code !== '—') {
+        const link = personalLink(e.id, code);
+        actions =
+          `<a class="cc-sms" href="${escapeHtml(smsHref(rec.phone, link))}">SMS</a>` +
+          `<button type="button" class="cc-copy" data-link="${escapeHtml(link)}">Kopiera länk</button>`;
+      }
       return `<li><span class="cc-boat">${escapeHtml(e.boatName || e.name)}</span>` +
-        `<span class="cc-code">${escapeHtml(code)}</span>${copy}</li>`;
+        `<span class="cc-code">${escapeHtml(code)}</span>${actions}</li>`;
     }).join('');
     el.codesList.querySelectorAll('.cc-copy').forEach((b) =>
       b.addEventListener('click', () => copyText(b.dataset.link, b)));
@@ -840,6 +968,11 @@ el.confirmBtn.addEventListener('click', async () => {
     if (lastRegCode) {
       myCode = lastRegCode;
       try { localStorage.setItem('kgr_my_code', myCode); } catch {}
+      // Spara ev. mobilnummer (kraver koden) - skyddat, bara arrangor laser det.
+      const phoneVal = ((el.phone && el.phone.value) || '').trim();
+      if (phoneVal) {
+        try { await sb.rpc('save_phone', { p_registration_id: myEntryId, p_code: lastRegCode, p_phone: phoneVal }); } catch {}
+      }
     }
   }
   resetForm();
@@ -1178,6 +1311,8 @@ toggleJetski();
 onScroll();
 initAdmin();
 initLiveMap();
+try { if (new URLSearchParams(location.search).get('akare') === '1') spectator = true; } catch {}
+applySpectator();
 renderAll();
 loadFromDb();
 loadPositions();

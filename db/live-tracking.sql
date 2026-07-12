@@ -9,6 +9,8 @@ create table if not exists public.boat_secrets (
   registration_id uuid primary key references public.registrations(id) on delete cascade,
   code text not null
 );
+-- Valfritt mobilnummer (endast arrangör läser det — för SMS-utskick av länken).
+alter table public.boat_secrets add column if not exists phone text;
 alter table public.boat_secrets enable row level security;
 -- Inga anon-policies => anon kan varken läsa eller skriva direkt.
 -- Inloggad arrangör får läsa koderna (för att hjälpa deltagare).
@@ -112,3 +114,20 @@ end $$;
 grant execute on function
   public.share_position(uuid, text, double precision, double precision,
                         double precision, double precision, double precision) to anon;
+
+-- 5. Spara mobilnummer (kräver rätt kod) ----------------------------
+create or replace function public.save_phone(
+  p_registration_id uuid, p_code text, p_phone text
+) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not exists (
+    select 1 from public.boat_secrets
+    where registration_id = p_registration_id and upper(code) = upper(p_code)
+  ) then
+    raise exception 'Fel delningskod';
+  end if;
+  update public.boat_secrets set phone = nullif(trim(p_phone), '')
+  where registration_id = p_registration_id;
+end $$;
+grant execute on function public.save_phone(uuid, text, text) to anon;
