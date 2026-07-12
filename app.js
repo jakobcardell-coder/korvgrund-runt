@@ -13,7 +13,7 @@ const RACE_DATE = '2026-07-15'; // onsdag 15 juli
 
 /* Kartans startvy för live-spårningen (centreras på startplatsen tills
    båtar delar position). Samma punkt som Skippo-länken i banan-sektionen. */
-const RACE_CENTER = [61.8351105862313, 17.3581981699333]; // [lat, lng] — startlinjen
+const RACE_CENTER = [61.8353, 17.3571167]; // [lat, lng] — startlinjen (61°50.118'N 17°21.427'E)
 const RACE_ZOOM = 13;
 const STALE_MS = 45000; // position räknas som "tyst" efter 45 s utan uppdatering
 
@@ -235,6 +235,7 @@ function subscribeRealtime() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'registrations' }, loadFromDb)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'race_state' }, loadFromDb)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'boat_positions' }, loadPositions)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'korv_orders' }, loadKorv)
     .subscribe();
 }
 
@@ -285,6 +286,12 @@ const el = {
   liveCodes: $('liveCodes'), codesList: $('codesList'),
   adminModal: $('adminModal'), adminForm: $('adminForm'), adminEmail: $('adminEmail'),
   adminPassword: $('adminPassword'), adminLoginBtn: $('adminLoginBtn'), adminCancelBtn: $('adminCancelBtn'), adminError: $('adminError'),
+  heroCountdown: $('heroCountdown'),
+  weatherBody: $('weatherBody'), weatherFoot: $('weatherFoot'),
+  korvForm: $('korvForm'), korvName: $('korvName'), korvSausages: $('korvSausages'), korvDrinks: $('korvDrinks'),
+  korvBtn: $('korvBtn'), korvMsg: $('korvMsg'), korvTallyNote: $('korvTallyNote'),
+  ktSausages: $('ktSausages'), ktDrinks: $('ktDrinks'), ktOrders: $('ktOrders'),
+  korvAdmin: $('korvAdmin'), korvList: $('korvList'),
 };
 
 let pendingEstimate = null; // fryst systemförslag att validera mot
@@ -651,7 +658,7 @@ function renderLockState() {
 
 function renderAll() {
   renderStatus(); renderLockState(); renderStartList(); renderMyStart();
-  renderShareControl(); renderLive(); loadCodes();
+  renderShareControl(); renderLive(); loadCodes(); loadKorvAdmin();
 }
 
 /* ============================================================
@@ -909,6 +916,201 @@ if (heroVideo) {
 }
 
 /* ============================================================
+   9. NEDRÄKNING TILL SJÄLVA LOPPET (hero, under datumet)
+   ============================================================ */
+function eventStartMs() {
+  return raceDayMidnightMs() + clockToSec(state.settings.firstStart) * 1000;
+}
+function tickEventCountdown() {
+  const cd = el.heroCountdown;
+  if (!cd) return;
+  const remaining = eventStartMs() - Date.now();
+  cd.hidden = false;
+  if (remaining <= 0) {
+    if (remaining > -6 * 3600 * 1000) {          // upp till ~6 h efter start = "pågår"
+      cd.classList.add('live');
+      cd.innerHTML = '<span>Loppet pågår just nu 🏁</span>';
+    } else {
+      cd.classList.remove('live');
+      cd.innerHTML = '<span>Tack för i år!</span>';
+    }
+    return;
+  }
+  cd.classList.remove('live');
+  const total = Math.floor(remaining / 1000);
+  const d = Math.floor(total / 86400);
+  const h = Math.floor((total % 86400) / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const clock = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  cd.innerHTML = d > 0
+    ? `<span>Startskott om</span> <b>${d} d&nbsp;&nbsp;${clock}</b>`
+    : `<span>Startskott om</span> <b>${clock}</b>`;
+}
+
+/* ============================================================
+   10. VÄDERPROGNOS (SMHI öppna data — ingen nyckel behövs)
+   ============================================================ */
+const WSYMB2 = {
+  1: ['Klart', '☀️'], 2: ['Mest klart', '🌤'], 3: ['Växlande molnighet', '⛅'], 4: ['Halvklart', '⛅'],
+  5: ['Molnigt', '☁️'], 6: ['Mulet', '☁️'], 7: ['Dimma', '🌫'],
+  8: ['Lätta regnskurar', '🌦'], 9: ['Regnskurar', '🌦'], 10: ['Kraftiga regnskurar', '🌧'],
+  11: ['Åskskurar', '⛈'], 12: ['Lätt snöblandat regn', '🌨'], 13: ['Snöblandat regn', '🌨'], 14: ['Kraftigt snöblandat regn', '🌨'],
+  15: ['Lätta snöbyar', '🌨'], 16: ['Snöbyar', '🌨'], 17: ['Kraftiga snöbyar', '❄️'],
+  18: ['Lätt regn', '🌦'], 19: ['Regn', '🌧'], 20: ['Kraftigt regn', '🌧'], 21: ['Åska', '⛈'],
+  22: ['Lätt snöblandat regn', '🌨'], 23: ['Snöblandat regn', '🌨'], 24: ['Kraftigt snöblandat regn', '🌨'],
+  25: ['Lätt snöfall', '🌨'], 26: ['Snöfall', '❄️'], 27: ['Kraftigt snöfall', '❄️'],
+};
+const WIND_DIRS = ['N', 'NO', 'O', 'SO', 'S', 'SV', 'V', 'NV'];
+function windCompass(deg) { return WIND_DIRS[Math.round((Number(deg) || 0) / 45) % 8]; }
+function paramVal(pt, name) {
+  const p = (pt.parameters || []).find((x) => x.name === name);
+  return p ? p.values[0] : null;
+}
+
+async function loadWeather() {
+  if (!el.weatherBody) return;
+  const [lat, lon] = RACE_CENTER;
+  const url = `https://opendata-download-metfcst.smhi.se/api/category/pmp3g/version/2/geotype/point/lon/${lon.toFixed(4)}/lat/${lat.toFixed(4)}/data.json`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('SMHI ' + res.status);
+    const data = await res.json();
+    const series = data.timeSeries || [];
+    if (!series.length) throw new Error('tom prognos');
+    const target = eventStartMs();
+    const last = new Date(series[series.length - 1].validTime).getTime();
+    if (target > last + 3600 * 1000) {
+      renderWeatherNote('SMHI:s prognos sträcker sig cirka 10 dygn framåt. Kom tillbaka närmare loppet så visas väderläget vid starten här.');
+      return;
+    }
+    let best = series[0], bestDiff = Infinity;
+    for (const pt of series) {
+      const diff = Math.abs(new Date(pt.validTime).getTime() - target);
+      if (diff < bestDiff) { bestDiff = diff; best = pt; }
+    }
+    renderWeather(best);
+  } catch {
+    renderWeatherNote('Kunde inte hämta väderprognosen just nu — försök igen senare.');
+  }
+}
+function renderWeather(pt) {
+  const t = paramVal(pt, 't');
+  const ws = paramVal(pt, 'ws');
+  const wd = paramVal(pt, 'wd');
+  const gust = paramVal(pt, 'gust');
+  const [desc, emoji] = WSYMB2[paramVal(pt, 'Wsymb2')] || ['—', '⛅'];
+
+  const rows = [];
+  if (ws != null) rows.push(['Vind', `${Math.round(ws)} m/s${wd != null ? ' från ' + windCompass(wd) : ''}`]);
+  if (gust != null) rows.push(['Byvind', `${Math.round(gust)} m/s`]);
+  const rain = (paramVal(pt, 'pmax') != null) ? paramVal(pt, 'pmax') : paramVal(pt, 'pmean');
+  if (rain != null) rows.push(['Nederbörd', rain > 0 ? `${sv(round1(rain))} mm/h` : 'Uppehåll']);
+  const r = paramVal(pt, 'r');
+  if (r != null) rows.push(['Luftfuktighet', `${Math.round(r)} %`]);
+
+  el.weatherBody.innerHTML =
+    '<div class="weather-main">' +
+      `<span class="weather-symbol" aria-hidden="true">${emoji}</span>` +
+      `<div><div class="weather-temp">${t != null ? Math.round(t) : '–'}<span>°C</span></div>` +
+      `<p class="weather-desc">${escapeHtml(desc)}</p></div>` +
+    '</div>' +
+    '<div class="weather-grid">' +
+      rows.map(([k, v]) => `<div class="weather-metric"><span class="wm-k">${escapeHtml(k)}</span><span class="wm-v">${escapeHtml(v)}</span></div>`).join('') +
+    '</div>';
+  const when = new Date(pt.validTime);
+  el.weatherFoot.textContent = `Prognos för ${when.toLocaleString('sv-SE', { weekday: 'long', hour: '2-digit', minute: '2-digit' })} · källa SMHI`;
+}
+function renderWeatherNote(msg) {
+  el.weatherBody.innerHTML = `<p class="weather-note">${escapeHtml(msg)}</p>`;
+  if (el.weatherFoot) el.weatherFoot.textContent = 'Prognos: SMHI';
+}
+
+/* ============================================================
+   11. KORVGRUND SPECIAL — förbeställ korv & dryck
+   ============================================================ */
+let korvTotals = { sausages: 0, drinks: 0, orders: 0 };
+
+function setKorvTotals(r) {
+  if (!r) return;
+  korvTotals = {
+    sausages: Number(r.total_sausages) || 0,
+    drinks: Number(r.total_drinks) || 0,
+    orders: Number(r.total_orders) || 0,
+  };
+}
+async function loadKorv() {
+  if (!sb || !el.ktSausages) return;
+  try {
+    const { data, error } = await sb.rpc('korv_totals');
+    if (error) throw error;
+    setKorvTotals(Array.isArray(data) ? data[0] : data);
+  } catch { /* tabell/RPC ej migrerad än — visa nollor */ }
+  renderKorvTally();
+  loadKorvAdmin();
+}
+function renderKorvTally() {
+  if (!el.ktSausages) return;
+  el.ktSausages.textContent = korvTotals.sausages;
+  el.ktDrinks.textContent = korvTotals.drinks;
+  el.ktOrders.textContent = korvTotals.orders;
+  if (el.korvTallyNote) {
+    el.korvTallyNote.textContent = korvTotals.orders > 0
+      ? `${korvTotals.orders} förbeställning${korvTotals.orders === 1 ? '' : 'ar'} hittills — grillen tackar. 🔥`
+      : 'Bli först att förbeställa!';
+  }
+}
+async function loadKorvAdmin() {
+  if (!el.korvAdmin || !el.korvList) return;
+  if (!sb || !isAdmin()) { el.korvList.innerHTML = ''; return; }
+  try {
+    const { data, error } = await sb.from('korv_orders')
+      .select('name, sausages, drinks, created_at').order('created_at', { ascending: true });
+    if (error) throw error;
+    el.korvList.innerHTML = (data || []).map((o) =>
+      `<li><span class="kl-name">${escapeHtml(o.name || '—')}</span>` +
+      `<span class="kl-count">${o.sausages || 0}🌭 · ${o.drinks || 0}🥤</span></li>`
+    ).join('') || '<li class="muted">Inga beställningar än.</li>';
+  } catch { el.korvList.innerHTML = ''; }
+}
+
+if (el.korvForm) {
+  el.korvForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = (el.korvName.value || '').trim();
+    const sausages = Math.max(0, parseInt(el.korvSausages.value, 10) || 0);
+    const drinks = Math.max(0, parseInt(el.korvDrinks.value, 10) || 0);
+    if (!name) { el.korvName.focus(); return; }
+    if (sausages === 0 && drinks === 0) {
+      el.korvMsg.textContent = 'Ange minst en korv eller en dryck.';
+      el.korvMsg.className = 'hint warn';
+      return;
+    }
+    if (!sb) { el.korvMsg.textContent = 'Ingen databasanslutning.'; el.korvMsg.className = 'hint warn'; return; }
+    el.korvBtn.disabled = true;
+    try {
+      const { data, error } = await sb.rpc('order_korv', { p_name: name, p_sausages: sausages, p_drinks: drinks });
+      if (error) throw error;
+      setKorvTotals(Array.isArray(data) ? data[0] : data);
+      renderKorvTally();
+      loadKorvAdmin();
+      el.korvMsg.textContent = `Tack ${name.split(' ')[0]}! ${sausages} korv${sausages === 1 ? '' : 'ar'} och ${drinks} dryck${drinks === 1 ? '' : 'er'} noterat. 🌭`;
+      el.korvMsg.className = 'hint';
+      el.korvForm.reset();
+      el.korvSausages.value = 2; el.korvDrinks.value = 1;
+    } catch (err) {
+      const msg = (err && err.message) || '';
+      el.korvMsg.textContent = /order_korv|does not exist|schema cache|not find/i.test(msg)
+        ? 'Förbeställning är inte aktiverad i databasen än.'
+        : 'Kunde inte spara: ' + msg;
+      el.korvMsg.className = 'hint warn';
+    } finally {
+      el.korvBtn.disabled = false;
+    }
+  });
+}
+
+/* ============================================================
    8. INIT
    ============================================================ */
 try {
@@ -923,8 +1125,12 @@ initLiveMap();
 renderAll();
 loadFromDb();
 loadPositions();
+loadWeather();
+loadKorv();
 subscribeRealtime();
+tickEventCountdown();
 setInterval(tickCountdown, 250);
+setInterval(tickEventCountdown, 250); // nedräkning till loppet i hero
 setInterval(renderLive, 5000); // uppdatera åldrar/gråmarkering på kartan
 
 /* Se till att kartan ritas rätt när sektionen kommer i vy (Leaflet behöver storlek). */

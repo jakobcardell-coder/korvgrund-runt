@@ -64,7 +64,9 @@
       <nav class="nav-links" id="navLinks">
         <a href="#om">Racet</a>
         <a href="#banan">Banan</a>
+        <a href="#infor">Inför loppet</a>
         <a href="#anmalan">Anmälan</a>
+        <a href="#korv">Korv</a>
         <a href="#min-start">Min start</a>
         <a href="#live">Följ live</a>
         <a href="#startlista">Startlista</a>
@@ -89,6 +91,7 @@
       <p class="hero-kicker">Hälsinglands svar på Gotland Runt</p>
       <h1 class="hero-title">Korvgrund&nbsp;Runt</h1>
       <p class="hero-date"><span class="dot"></span> Onsdag 15 juli · Start kl 13:00</p>
+      <p class="hero-countdown" id="heroCountdown" aria-live="polite" hidden></p>
       <p class="hero-sub">Ut från startlinjen, runt ön Korvgrund och hem igen — 4,6 nautiska mil.
         Varje båt får sin egen starttid så att skicklighet, inte hästkrafter, avgör vem som vinner.
         Tävlande som åskådare — alla är hjärtligt välkomna.</p>
@@ -178,7 +181,7 @@
           <li><span class="marker turn">2</span> Korvgrund — rundas 2,3 nm ut</li>
           <li><span class="marker finish">3</span> Retur — 2,3 nm hem</li>
         </ul>
-        <a class="start-coord" href="https://www.skippo.se/plan?linkType=coordinate&amp;title=Markerad%20plats&amp;lng=17.3581981699333&amp;lat=61.8351105862313" target="_blank" rel="noopener">
+        <a class="start-coord" href="https://www.skippo.se/plan?linkType=coordinate&amp;title=Markerad%20plats&amp;lng=17.3571167&amp;lat=61.8353" target="_blank" rel="noopener">
           <span class="start-coord-ico" aria-hidden="true">📍</span>
           <span class="start-coord-body">
             <span class="start-coord-label">Startplatsen</span>
@@ -217,6 +220,56 @@
           <text x="318" y="212" class="map-dist gold">2,3 nm</text>
           <g class="map-boat"><g transform="translate(198 196) scale(0.55) rotate(-28)"><use href="#rboat" style="--boat:#0f2c47;--boat-stripe:#c9a35d"/></g></g>
         </svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Inför loppet: väder + samlingsplats ===== -->
+  <section class="section" id="infor">
+    <div class="wrap">
+      <div class="section-head center">
+        <p class="eyebrow">Inför loppet</p>
+        <h2>Väder och samling på startdagen</h2>
+        <p class="lead">Håll koll på prognosen och var på plats i god tid — skeppargenomgången
+          börjar 12:40, första start 13:00.</p>
+      </div>
+
+      <div class="infor-grid">
+        <!-- Väderprognos (SMHI) -->
+        <div class="card weather-card" id="weatherCard">
+          <h3 class="mini-head"><span class="ico">⛅</span> Väder vid start</h3>
+          <div class="weather-body" id="weatherBody">
+            <p class="weather-loading" id="weatherLoading">Hämtar prognos …</p>
+          </div>
+          <p class="weather-foot" id="weatherFoot">Prognos: SMHI</p>
+        </div>
+
+        <!-- Samlingsplats + tidslinje -->
+        <div class="card meet-card">
+          <h3 class="mini-head"><span class="ico">📍</span> Samling vid starten</h3>
+          <ol class="meet-timeline">
+            <li>
+              <span class="meet-time">12:40</span>
+              <span class="meet-txt"><b>Samling &amp; skeppargenomgång</b> vid startplatsen, där MS Sjöstjärnan ligger. Genomgång av bana, säkerhet och startordning — var på plats i god tid.</span>
+            </li>
+            <li>
+              <span class="meet-time">12:55</span>
+              <span class="meet-txt">Alla båtar bakom startlinjen med motorerna igång.</span>
+            </li>
+            <li>
+              <span class="meet-time">13:00</span>
+              <span class="meet-txt"><b>Första start.</b> Långsammaste båten går först, därefter enligt din individuella starttid.</span>
+            </li>
+          </ol>
+          <a class="start-coord" href="https://www.skippo.se/plan?linkType=coordinate&amp;title=Markerad%20plats&amp;lng=17.3571167&amp;lat=61.8353" target="_blank" rel="noopener">
+            <span class="start-coord-ico" aria-hidden="true">📍</span>
+            <span class="start-coord-body">
+              <span class="start-coord-label">Startplatsen &amp; MS Sjöstjärnan</span>
+              <span class="start-coord-val">61° 50.118′ N&nbsp;&nbsp;17° 21.427′ E</span>
+            </span>
+            <span class="start-coord-cta">Öppna i Skippo →</span>
+          </a>
+        </div>
       </div>
     </div>
   </section>
@@ -341,6 +394,58 @@
             <input type="number" id="maxDev" min="0" max="90" step="1" inputmode="numeric" />
             <span class="hint">Skydd mot orimligt låg angiven fart. Standard 20 %.</span>
           </label>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Korvgrund Special: förbeställ korv & dryck ===== -->
+  <section class="section" id="korv">
+    <div class="wrap">
+      <div class="section-head center">
+        <p class="eyebrow">Korvgrund Special</p>
+        <h2>Förbeställ korv &amp; dryck 🌭</h2>
+        <p class="lead">Grillen på MS Sjöstjärnan går varm under loppet. Förbeställ så vet vi hur
+          mycket vi ska elda för — hämtas ombord på Sjöstjärnan.</p>
+      </div>
+
+      <div class="panel-grid korv-grid">
+        <div class="card form-card">
+          <form id="korvForm" autocomplete="off">
+            <div class="form-grid">
+              <label class="field span-2">
+                <span class="label-text">Namn</span>
+                <input type="text" id="korvName" required placeholder="Ditt namn eller båtnamn" />
+              </label>
+              <label class="field">
+                <span class="label-text">Antal korvar 🌭</span>
+                <input type="number" id="korvSausages" min="0" max="50" step="1" inputmode="numeric" value="2" />
+              </label>
+              <label class="field">
+                <span class="label-text">Antal dryck 🥤</span>
+                <input type="number" id="korvDrinks" min="0" max="50" step="1" inputmode="numeric" value="1" />
+              </label>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary" id="korvBtn">Lägg till förbeställning</button>
+            </div>
+            <p class="hint" id="korvMsg" aria-live="polite"></p>
+          </form>
+        </div>
+
+        <aside class="card korv-tally-card">
+          <h3 class="mini-head"><span class="ico">🔥</span> Förbeställt hittills</h3>
+          <div class="korv-tally">
+            <div class="kt-item"><span class="kt-num" id="ktSausages">–</span><span class="kt-lbl">korvar</span></div>
+            <div class="kt-item"><span class="kt-num" id="ktDrinks">–</span><span class="kt-lbl">drycker</span></div>
+            <div class="kt-item"><span class="kt-num" id="ktOrders">–</span><span class="kt-lbl">beställningar</span></div>
+          </div>
+          <p class="muted" id="korvTallyNote">Bli först att förbeställa!</p>
+
+          <div class="korv-admin admin-only" id="korvAdmin">
+            <h4 class="mini-head sub"><span class="ico">📋</span> Beställningar</h4>
+            <ul class="korv-list" id="korvList"></ul>
+          </div>
         </aside>
       </div>
     </div>
