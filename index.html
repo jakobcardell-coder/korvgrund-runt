@@ -607,6 +607,14 @@ body:not(.admin) .panel-grid { grid-template-columns: 1fr; }
 
 /* ===================== Följ live (karta) ===================== */
 .share-card { max-width: 760px; margin: 0 auto 22px; }
+.share-keepon {
+  display: flex; gap: 12px; align-items: flex-start;
+  max-width: 760px; margin: 0 auto 22px;
+  background: #fff8ee; border: 1px solid #ecd9b4; border-radius: var(--r-md);
+  padding: 14px 16px; color: var(--navy-soft); font-size: 0.92rem; line-height: 1.5;
+}
+.share-keepon .ki { font-size: 1.3rem; line-height: 1; flex: none; }
+.share-keepon b { color: var(--navy); }
 .share-pick { display: grid; grid-template-columns: 1fr 160px; gap: 16px; margin-bottom: 18px; }
 .share-idle { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .share-idle .btn { align-self: stretch; }
@@ -656,10 +664,22 @@ body:not(.admin) .panel-grid { grid-template-columns: 1fr; }
 
 .codes-card { max-width: 760px; margin: 22px auto 0; }
 .codes-list { list-style: none; padding: 0; margin: 12px 0 0;
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
-.codes-list li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 13px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+.codes-list li { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 9px 13px;
   border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--mist); }
+.codes-list .cc-boat { flex: 1 1 auto; }
 .codes-list .cc-code { font-family: var(--sans); font-weight: 700; letter-spacing: 0.12em; color: var(--gold-ink); }
+.cc-copy {
+  flex: 0 0 auto; font-family: var(--sans); font-size: 0.78rem; font-weight: 600;
+  padding: 5px 11px; border-radius: 30px; border: 1px solid var(--line-strong);
+  background: var(--paper); color: var(--navy-soft); cursor: pointer; transition: 0.15s;
+}
+.cc-copy:hover { border-color: var(--gold-ink); color: var(--gold-ink); }
+.cc-copy.copied, .btn-copy.copied { border-color: var(--sea-deep); color: var(--sea-deep); background: #eaf4fb; }
+
+.share-who { margin: 0 0 4px; font-size: 1.02rem; color: var(--navy-soft); }
+.share-who b { font-family: var(--serif); font-style: italic; font-size: 1.15rem; color: var(--sea-deep); }
+.btn-copy { align-self: flex-start; margin-top: 10px; padding: 8px 16px; font-size: 0.88rem; }
 
 .thanks-code {
   margin: 4px 0 0; padding: 12px 16px; background: var(--mist);
@@ -1255,6 +1275,7 @@ body.admin .korv-admin.admin-only { display: block !important; }
               <input type="text" id="shareCode" autocomplete="off" maxlength="6" placeholder="t.ex. 7K2Q" />
             </label>
           </div>
+          <p class="share-who" id="shareWho" hidden></p>
           <button type="button" class="btn btn-primary" id="shareStartBtn">Dela min position</button>
           <p class="hint" id="shareHint">Din telefons GPS delas med fältet så länge sidan är öppen. Du kan sluta när som helst.</p>
         </div>
@@ -1265,6 +1286,18 @@ body.admin .korv-admin.admin-only { display: block !important; }
             <span id="shareStatus">Väntar på GPS …</span>
           </div>
           <button type="button" class="btn btn-ghost" id="shareStopBtn">Sluta dela</button>
+        </div>
+      </div>
+
+      <!-- Viktigt: håll skärmen tänd (gäller både iPhone och Android) -->
+      <div class="share-keepon">
+        <span class="ki" aria-hidden="true">📱</span>
+        <div>
+          <b>Håll skärmen tänd medan du delar din position.</b>
+          På både iPhone och Android pausas GPS:en så fort telefonen låser sig eller skärmen
+          släcks — då tappar fältet din båt tills du väcker sidan igen. Sidan försöker själv
+          hålla skärmen vaken, men slå gärna av automatiskt skärmlås under loppet och ha
+          laddaren i närheten.
         </div>
       </div>
 
@@ -1283,7 +1316,7 @@ body.admin .korv-admin.admin-only { display: block !important; }
       <!-- Arrangörens kodlista (endast inloggad) -->
       <div class="card codes-card admin-only" id="liveCodes">
         <h3 class="mini-head"><span class="ico">🔑</span> Delningskoder</h3>
-        <p class="muted">Läs upp rätt kod för deltagaren om hen behöver dela sin position från en annan enhet.</p>
+        <p class="muted">Kopiera deltagarens personliga länk och skicka den (SMS/WhatsApp) — den öppnar Följ live med båt och kod ifyllt. Koden går också att läsa upp.</p>
         <ul class="codes-list" id="codesList"></ul>
       </div>
     </div>
@@ -1376,7 +1409,8 @@ body.admin .korv-admin.admin-only { display: block !important; }
       <p class="thanks-text" id="thanksTitle">Styrelsen för Sthlmsveckorna tackar för din anmälan.</p>
       <p class="thanks-code" id="thanksCode" hidden>
         Din delningskod för live-position: <b id="thanksCodeVal"></b>
-        <span class="hint">Spara den om du vill dela din position från en annan enhet.</span>
+        <span class="hint">Spara din personliga länk — då kan du dela din position direkt från valfri enhet, utan att skriva in koden.</span>
+        <button type="button" class="btn btn-ghost btn-copy" id="thanksCopyBtn">Kopiera min länk</button>
       </p>
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" id="thanksCloseBtn">Till startlistan</button>
@@ -1672,7 +1706,8 @@ const el = {
   thanksCode: $('thanksCode'), thanksCodeVal: $('thanksCodeVal'),
   liveMap: $('liveMap'), liveEmpty: $('liveEmpty'), liveList: $('liveList'),
   shareIdle: $('shareIdle'), sharePick: $('sharePick'), shareBoat: $('shareBoat'), shareCode: $('shareCode'),
-  shareStartBtn: $('shareStartBtn'), shareHint: $('shareHint'),
+  shareStartBtn: $('shareStartBtn'), shareHint: $('shareHint'), shareWho: $('shareWho'),
+  thanksCopyBtn: $('thanksCopyBtn'),
   shareActive: $('shareActive'), shareStatus: $('shareStatus'), shareStopBtn: $('shareStopBtn'),
   liveCodes: $('liveCodes'), codesList: $('codesList'),
   adminModal: $('adminModal'), adminForm: $('adminForm'), adminEmail: $('adminEmail'),
@@ -1860,6 +1895,31 @@ let sharing = false, geoWatchId = null, wakeLock = null, lastPush = 0;
 function entryById(id) { return state.entries.find((e) => String(e.id) === String(id)); }
 function boatLabel(id) { const e = entryById(id); return (e && (e.boatName || e.name)) || 'Båt'; }
 
+/* Personlig länk: öppnar Följ live med båt + kod förifyllt (koden ligger i
+   query-strängen och plockas bort ur adressfältet direkt vid öppning). */
+function personalLink(id, code) {
+  return `${location.origin}${location.pathname}?b=${encodeURIComponent(id)}&k=${encodeURIComponent(code)}#live`;
+}
+function copyText(text, btn) {
+  const flash = () => {
+    if (!btn) return;
+    const orig = btn.textContent;
+    btn.textContent = 'Kopierad!'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 1600);
+  };
+  const fallback = () => {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta); flash();
+    } catch {}
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(flash).catch(fallback);
+  } else fallback();
+}
+
 function initLiveMap() {
   if (liveMap || !window.L || !el.liveMap) return;
   liveMap = L.map(el.liveMap, { zoomControl: true }).setView(RACE_CENTER, RACE_ZOOM);
@@ -1940,10 +2000,20 @@ function renderShareControl() {
   el.shareActive.hidden = !sharing;
   el.shareIdle.hidden = sharing;
   if (sharing) return;
-  const knowMe = !!(myEntryId && myCode);
+  const list = currentStartList();
+  const loaded = list.length > 0;
+  const boatOk = myEntryId && list.some((e) => String(e.id) === String(myEntryId));
+  // Känner vi till båt + kod (från anmälan eller personlig länk) hoppar vi över
+  // väljaren. Medan datan laddas litar vi på det lagrade valet (undvik flimmer).
+  const knowMe = !!(myEntryId && myCode && (boatOk || !loaded));
   el.sharePick.hidden = knowMe;
-  if (!knowMe) {
-    const list = currentStartList();
+
+  if (knowMe) {
+    const e = entryById(myEntryId);
+    el.shareWho.hidden = !e;
+    if (e) el.shareWho.innerHTML = `Din båt: <b>${escapeHtml(e.boatName || e.name)}</b>`;
+  } else {
+    el.shareWho.hidden = true;
     const cur = el.shareBoat.value || (myEntryId ? String(myEntryId) : '');
     el.shareBoat.innerHTML = '<option value="">Välj din båt …</option>' +
       list.map((e) => `<option value="${e.id}">${escapeHtml(e.name)} · ${escapeHtml(e.boatName || '')}</option>`).join('');
@@ -2034,9 +2104,15 @@ async function loadCodes() {
     if (error) throw error;
     const byId = {};
     (data || []).forEach((r) => { byId[String(r.registration_id)] = r.code; });
-    el.codesList.innerHTML = currentStartList().map((e) =>
-      `<li><span>${escapeHtml(e.boatName || e.name)}</span><span class="cc-code">${escapeHtml(byId[String(e.id)] || '—')}</span></li>`
-    ).join('');
+    el.codesList.innerHTML = currentStartList().map((e) => {
+      const code = byId[String(e.id)] || '—';
+      const copy = code === '—' ? '' :
+        `<button type="button" class="cc-copy" data-link="${escapeHtml(personalLink(e.id, code))}">Kopiera länk</button>`;
+      return `<li><span class="cc-boat">${escapeHtml(e.boatName || e.name)}</span>` +
+        `<span class="cc-code">${escapeHtml(code)}</span>${copy}</li>`;
+    }).join('');
+    el.codesList.querySelectorAll('.cc-copy').forEach((b) =>
+      b.addEventListener('click', () => copyText(b.dataset.link, b)));
   } catch {
     el.codesList.innerHTML = '<li><span>Kunde inte hämta koder</span><span class="cc-code">—</span></li>';
   }
@@ -2219,6 +2295,9 @@ function goToCountdown() {
 }
 if (el.thanksCloseBtn) el.thanksCloseBtn.addEventListener('click', closeThanks);
 if (el.thanksCountdownBtn) el.thanksCountdownBtn.addEventListener('click', goToCountdown);
+if (el.thanksCopyBtn) el.thanksCopyBtn.addEventListener('click', () => {
+  if (myEntryId && myCode) copyText(personalLink(myEntryId, myCode), el.thanksCopyBtn);
+});
 if (el.thanksModal) el.thanksModal.addEventListener('click', (e) => { if (e.target === el.thanksModal) closeThanks(); });
 
 el.cancelEstimate.addEventListener('click', resetForm);
@@ -2508,6 +2587,16 @@ if (el.korvForm) {
 try {
   myEntryId = localStorage.getItem('kgr_my_entry');
   myCode = localStorage.getItem('kgr_my_code');
+} catch {}
+/* Personlig länk (?b=<id>&k=<kod>): ladda båt + kod, plocka bort ur adressen. */
+try {
+  const params = new URLSearchParams(location.search);
+  const pb = params.get('b'), pk = params.get('k');
+  if (pb && pk) {
+    myEntryId = String(pb); myCode = pk;
+    try { localStorage.setItem('kgr_my_entry', myEntryId); localStorage.setItem('kgr_my_code', myCode); } catch {}
+    history.replaceState({}, '', location.pathname + (location.hash || '#live'));
+  }
 } catch {}
 refreshSettingsInputs();
 toggleJetski();

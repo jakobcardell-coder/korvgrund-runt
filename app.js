@@ -281,7 +281,8 @@ const el = {
   thanksCode: $('thanksCode'), thanksCodeVal: $('thanksCodeVal'),
   liveMap: $('liveMap'), liveEmpty: $('liveEmpty'), liveList: $('liveList'),
   shareIdle: $('shareIdle'), sharePick: $('sharePick'), shareBoat: $('shareBoat'), shareCode: $('shareCode'),
-  shareStartBtn: $('shareStartBtn'), shareHint: $('shareHint'),
+  shareStartBtn: $('shareStartBtn'), shareHint: $('shareHint'), shareWho: $('shareWho'),
+  thanksCopyBtn: $('thanksCopyBtn'),
   shareActive: $('shareActive'), shareStatus: $('shareStatus'), shareStopBtn: $('shareStopBtn'),
   liveCodes: $('liveCodes'), codesList: $('codesList'),
   adminModal: $('adminModal'), adminForm: $('adminForm'), adminEmail: $('adminEmail'),
@@ -469,6 +470,31 @@ let sharing = false, geoWatchId = null, wakeLock = null, lastPush = 0;
 function entryById(id) { return state.entries.find((e) => String(e.id) === String(id)); }
 function boatLabel(id) { const e = entryById(id); return (e && (e.boatName || e.name)) || 'Båt'; }
 
+/* Personlig länk: öppnar Följ live med båt + kod förifyllt (koden ligger i
+   query-strängen och plockas bort ur adressfältet direkt vid öppning). */
+function personalLink(id, code) {
+  return `${location.origin}${location.pathname}?b=${encodeURIComponent(id)}&k=${encodeURIComponent(code)}#live`;
+}
+function copyText(text, btn) {
+  const flash = () => {
+    if (!btn) return;
+    const orig = btn.textContent;
+    btn.textContent = 'Kopierad!'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 1600);
+  };
+  const fallback = () => {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta); flash();
+    } catch {}
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(flash).catch(fallback);
+  } else fallback();
+}
+
 function initLiveMap() {
   if (liveMap || !window.L || !el.liveMap) return;
   liveMap = L.map(el.liveMap, { zoomControl: true }).setView(RACE_CENTER, RACE_ZOOM);
@@ -549,10 +575,20 @@ function renderShareControl() {
   el.shareActive.hidden = !sharing;
   el.shareIdle.hidden = sharing;
   if (sharing) return;
-  const knowMe = !!(myEntryId && myCode);
+  const list = currentStartList();
+  const loaded = list.length > 0;
+  const boatOk = myEntryId && list.some((e) => String(e.id) === String(myEntryId));
+  // Känner vi till båt + kod (från anmälan eller personlig länk) hoppar vi över
+  // väljaren. Medan datan laddas litar vi på det lagrade valet (undvik flimmer).
+  const knowMe = !!(myEntryId && myCode && (boatOk || !loaded));
   el.sharePick.hidden = knowMe;
-  if (!knowMe) {
-    const list = currentStartList();
+
+  if (knowMe) {
+    const e = entryById(myEntryId);
+    el.shareWho.hidden = !e;
+    if (e) el.shareWho.innerHTML = `Din båt: <b>${escapeHtml(e.boatName || e.name)}</b>`;
+  } else {
+    el.shareWho.hidden = true;
     const cur = el.shareBoat.value || (myEntryId ? String(myEntryId) : '');
     el.shareBoat.innerHTML = '<option value="">Välj din båt …</option>' +
       list.map((e) => `<option value="${e.id}">${escapeHtml(e.name)} · ${escapeHtml(e.boatName || '')}</option>`).join('');
@@ -643,9 +679,15 @@ async function loadCodes() {
     if (error) throw error;
     const byId = {};
     (data || []).forEach((r) => { byId[String(r.registration_id)] = r.code; });
-    el.codesList.innerHTML = currentStartList().map((e) =>
-      `<li><span>${escapeHtml(e.boatName || e.name)}</span><span class="cc-code">${escapeHtml(byId[String(e.id)] || '—')}</span></li>`
-    ).join('');
+    el.codesList.innerHTML = currentStartList().map((e) => {
+      const code = byId[String(e.id)] || '—';
+      const copy = code === '—' ? '' :
+        `<button type="button" class="cc-copy" data-link="${escapeHtml(personalLink(e.id, code))}">Kopiera länk</button>`;
+      return `<li><span class="cc-boat">${escapeHtml(e.boatName || e.name)}</span>` +
+        `<span class="cc-code">${escapeHtml(code)}</span>${copy}</li>`;
+    }).join('');
+    el.codesList.querySelectorAll('.cc-copy').forEach((b) =>
+      b.addEventListener('click', () => copyText(b.dataset.link, b)));
   } catch {
     el.codesList.innerHTML = '<li><span>Kunde inte hämta koder</span><span class="cc-code">—</span></li>';
   }
@@ -828,6 +870,9 @@ function goToCountdown() {
 }
 if (el.thanksCloseBtn) el.thanksCloseBtn.addEventListener('click', closeThanks);
 if (el.thanksCountdownBtn) el.thanksCountdownBtn.addEventListener('click', goToCountdown);
+if (el.thanksCopyBtn) el.thanksCopyBtn.addEventListener('click', () => {
+  if (myEntryId && myCode) copyText(personalLink(myEntryId, myCode), el.thanksCopyBtn);
+});
 if (el.thanksModal) el.thanksModal.addEventListener('click', (e) => { if (e.target === el.thanksModal) closeThanks(); });
 
 el.cancelEstimate.addEventListener('click', resetForm);
@@ -1117,6 +1162,16 @@ if (el.korvForm) {
 try {
   myEntryId = localStorage.getItem('kgr_my_entry');
   myCode = localStorage.getItem('kgr_my_code');
+} catch {}
+/* Personlig länk (?b=<id>&k=<kod>): ladda båt + kod, plocka bort ur adressen. */
+try {
+  const params = new URLSearchParams(location.search);
+  const pb = params.get('b'), pk = params.get('k');
+  if (pb && pk) {
+    myEntryId = String(pb); myCode = pk;
+    try { localStorage.setItem('kgr_my_entry', myEntryId); localStorage.setItem('kgr_my_code', myCode); } catch {}
+    history.replaceState({}, '', location.pathname + (location.hash || '#live'));
+  }
 } catch {}
 refreshSettingsInputs();
 toggleJetski();

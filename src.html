@@ -511,6 +511,7 @@
               <input type="text" id="shareCode" autocomplete="off" maxlength="6" placeholder="t.ex. 7K2Q" />
             </label>
           </div>
+          <p class="share-who" id="shareWho" hidden></p>
           <button type="button" class="btn btn-primary" id="shareStartBtn">Dela min position</button>
           <p class="hint" id="shareHint">Din telefons GPS delas med fältet så länge sidan är öppen. Du kan sluta när som helst.</p>
         </div>
@@ -521,6 +522,18 @@
             <span id="shareStatus">Väntar på GPS …</span>
           </div>
           <button type="button" class="btn btn-ghost" id="shareStopBtn">Sluta dela</button>
+        </div>
+      </div>
+
+      <!-- Viktigt: håll skärmen tänd (gäller både iPhone och Android) -->
+      <div class="share-keepon">
+        <span class="ki" aria-hidden="true">📱</span>
+        <div>
+          <b>Håll skärmen tänd medan du delar din position.</b>
+          På både iPhone och Android pausas GPS:en så fort telefonen låser sig eller skärmen
+          släcks — då tappar fältet din båt tills du väcker sidan igen. Sidan försöker själv
+          hålla skärmen vaken, men slå gärna av automatiskt skärmlås under loppet och ha
+          laddaren i närheten.
         </div>
       </div>
 
@@ -539,7 +552,7 @@
       <!-- Arrangörens kodlista (endast inloggad) -->
       <div class="card codes-card admin-only" id="liveCodes">
         <h3 class="mini-head"><span class="ico">🔑</span> Delningskoder</h3>
-        <p class="muted">Läs upp rätt kod för deltagaren om hen behöver dela sin position från en annan enhet.</p>
+        <p class="muted">Kopiera deltagarens personliga länk och skicka den (SMS/WhatsApp) — den öppnar Följ live med båt och kod ifyllt. Koden går också att läsa upp.</p>
         <ul class="codes-list" id="codesList"></ul>
       </div>
     </div>
@@ -632,7 +645,8 @@
       <p class="thanks-text" id="thanksTitle">Styrelsen för Sthlmsveckorna tackar för din anmälan.</p>
       <p class="thanks-code" id="thanksCode" hidden>
         Din delningskod för live-position: <b id="thanksCodeVal"></b>
-        <span class="hint">Spara den om du vill dela din position från en annan enhet.</span>
+        <span class="hint">Spara din personliga länk — då kan du dela din position direkt från valfri enhet, utan att skriva in koden.</span>
+        <button type="button" class="btn btn-ghost btn-copy" id="thanksCopyBtn">Kopiera min länk</button>
       </p>
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" id="thanksCloseBtn">Till startlistan</button>
