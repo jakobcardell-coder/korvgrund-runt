@@ -8,6 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -64,6 +66,7 @@
         <a href="#banan">Banan</a>
         <a href="#anmalan">Anmälan</a>
         <a href="#min-start">Min start</a>
+        <a href="#live">Följ live</a>
         <a href="#startlista">Startlista</a>
         <a href="#anmalan" class="nav-cta">Anmäl dig</a>
       </nav>
@@ -175,6 +178,14 @@
           <li><span class="marker turn">2</span> Korvgrund — rundas 2,3 nm ut</li>
           <li><span class="marker finish">3</span> Retur — 2,3 nm hem</li>
         </ul>
+        <a class="start-coord" href="https://www.skippo.se/plan?linkType=coordinate&amp;title=Markerad%20plats&amp;lng=17.3581981699333&amp;lat=61.8351105862313" target="_blank" rel="noopener">
+          <span class="start-coord-ico" aria-hidden="true">📍</span>
+          <span class="start-coord-body">
+            <span class="start-coord-label">Startplatsen</span>
+            <span class="start-coord-val">61° 50.118′ N&nbsp;&nbsp;17° 21.427′ E</span>
+          </span>
+          <span class="start-coord-cta">Öppna i Skippo →</span>
+        </a>
       </div>
       <div class="course-map">
         <svg viewBox="0 0 460 320" role="img" aria-label="Karta över banan">
@@ -372,8 +383,65 @@
     </div>
   </section>
 
+  <!-- ===== Följ live (positioner på karta) ===== -->
+  <section class="section alt" id="live">
+    <div class="wrap">
+      <div class="section-head center">
+        <p class="eyebrow">Följ live</p>
+        <h2>Följ båtarna i realtid</h2>
+        <p class="lead">Se var fältet befinner sig just nu. Delar du din egen position dyker din
+          båt upp på kartan för alla — ha sidan öppen med skärmen på ombord.</p>
+      </div>
+
+      <!-- Dela din position -->
+      <div class="card share-card" id="liveShare">
+        <div class="share-idle" id="shareIdle">
+          <div class="share-pick" id="sharePick" hidden>
+            <label class="field">
+              <span class="label-text">Din båt</span>
+              <select id="shareBoat"><option value="">Välj din båt …</option></select>
+            </label>
+            <label class="field">
+              <span class="label-text">Din delningskod</span>
+              <input type="text" id="shareCode" autocomplete="off" maxlength="6" placeholder="t.ex. 7K2Q" />
+            </label>
+          </div>
+          <button type="button" class="btn btn-primary" id="shareStartBtn">Dela min position</button>
+          <p class="hint" id="shareHint">Din telefons GPS delas med fältet så länge sidan är öppen. Du kan sluta när som helst.</p>
+        </div>
+        <div class="share-active" id="shareActive" hidden>
+          <span class="share-dot" aria-hidden="true"></span>
+          <div class="share-active-txt">
+            <b>Du delar din position</b>
+            <span id="shareStatus">Väntar på GPS …</span>
+          </div>
+          <button type="button" class="btn btn-ghost" id="shareStopBtn">Sluta dela</button>
+        </div>
+      </div>
+
+      <!-- Kartan -->
+      <div class="card map-card">
+        <div id="liveMap" class="live-map"></div>
+        <div class="live-empty" id="liveEmpty">
+          <span class="empty-mark" aria-hidden="true">🛰</span>
+          <p>Inga båtar delar sin position just nu.</p>
+        </div>
+      </div>
+
+      <!-- Lista över spårade båtar -->
+      <ul class="live-list" id="liveList"></ul>
+
+      <!-- Arrangörens kodlista (endast inloggad) -->
+      <div class="card codes-card admin-only" id="liveCodes" hidden>
+        <h3 class="mini-head"><span class="ico">🔑</span> Delningskoder</h3>
+        <p class="muted">Läs upp rätt kod för deltagaren om hen behöver dela sin position från en annan enhet.</p>
+        <ul class="codes-list" id="codesList"></ul>
+      </div>
+    </div>
+  </section>
+
   <!-- ===== Startlista ===== -->
-  <section class="section alt" id="startlista">
+  <section class="section" id="startlista">
     <div class="wrap">
       <div class="section-head center">
         <p class="eyebrow">Startordning</p>
@@ -457,6 +525,10 @@
     <div class="modal-card thanks-card" role="dialog" aria-modal="true" aria-labelledby="thanksTitle">
       <img class="thanks-photo" id="thanksPhoto" src="__TACK_IMG__" alt="Styrelsen för Sthlmsveckorna" />
       <p class="thanks-text" id="thanksTitle">Styrelsen för Sthlmsveckorna tackar för din anmälan.</p>
+      <p class="thanks-code" id="thanksCode" hidden>
+        Din delningskod för live-position: <b id="thanksCodeVal"></b>
+        <span class="hint">Spara den om du vill dela din position från en annan enhet.</span>
+      </p>
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" id="thanksCloseBtn">Till startlistan</button>
         <button type="button" class="btn btn-primary" id="thanksCountdownBtn">Se din nedräkning</button>
@@ -465,6 +537,8 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="app.js"></script>
 </body>
 </html>

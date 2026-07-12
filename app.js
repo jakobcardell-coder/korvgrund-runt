@@ -11,6 +11,12 @@ const KMH_PER_KNOT = 1.852;
    arrangörsinställningarna; datumet sätts här. Ändra om racet flyttas. */
 const RACE_DATE = '2026-07-15'; // onsdag 15 juli
 
+/* Kartans startvy för live-spårningen (centreras på startplatsen tills
+   båtar delar position). Samma punkt som Skippo-länken i banan-sektionen. */
+const RACE_CENTER = [61.8351105862313, 17.3581981699333]; // [lat, lng] — startlinjen
+const RACE_ZOOM = 13;
+const STALE_MS = 45000; // position räknas som "tyst" efter 45 s utan uppdatering
+
 /* Delad databas (Supabase). anon-nyckeln är publik och säker att ligga i
    webbläsaren — behörighet styrs server-sidan av Row Level Security:
    alla får läsa och anmäla sig, men bara inloggad arrangör får ta bort,
@@ -189,6 +195,7 @@ let state = {
   settings: { distanceNm: 4.6, firstStart: '13:00:00', maxDevPct: 20 },
   locked: false,
   entries: [],
+  positions: [],
 };
 
 function rowToEntry(r) {
@@ -227,6 +234,7 @@ function subscribeRealtime() {
   sb.channel('korvgrund-runt')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'registrations' }, loadFromDb)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'race_state' }, loadFromDb)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'boat_positions' }, loadPositions)
     .subscribe();
 }
 
@@ -269,6 +277,12 @@ const el = {
   countdownCard: $('countdownCard'), cdPicker: $('cdPicker'), myEntrySelect: $('myEntrySelect'),
   cdBody: $('cdBody'), cdEmpty: $('cdEmpty'), cdStatus: $('cdStatus'), cdBoat: $('cdBoat'),
   cdTime: $('cdTime'), cdTimeLabel: $('cdTimeLabel'), cdMeta: $('cdMeta'),
+  thanksCode: $('thanksCode'), thanksCodeVal: $('thanksCodeVal'),
+  liveMap: $('liveMap'), liveEmpty: $('liveEmpty'), liveList: $('liveList'),
+  shareIdle: $('shareIdle'), sharePick: $('sharePick'), shareBoat: $('shareBoat'), shareCode: $('shareCode'),
+  shareStartBtn: $('shareStartBtn'), shareHint: $('shareHint'),
+  shareActive: $('shareActive'), shareStatus: $('shareStatus'), shareStopBtn: $('shareStopBtn'),
+  liveCodes: $('liveCodes'), codesList: $('codesList'),
   adminModal: $('adminModal'), adminForm: $('adminForm'), adminEmail: $('adminEmail'),
   adminPassword: $('adminPassword'), adminLoginBtn: $('adminLoginBtn'), adminCancelBtn: $('adminCancelBtn'), adminError: $('adminError'),
 };
@@ -439,6 +453,195 @@ if (el.myEntrySelect) {
   });
 }
 
+/* ---------- Följ live: karta + positionsdelning ---------- */
+let myCode = null;          // egen delningskod
+let lastRegCode = null;     // kod från senaste anmälan (för tack-modalen)
+let liveMap = null, liveMarkers = {}, liveMapFitted = false;
+let sharing = false, geoWatchId = null, wakeLock = null, lastPush = 0;
+
+function entryById(id) { return state.entries.find((e) => String(e.id) === String(id)); }
+function boatLabel(id) { const e = entryById(id); return (e && (e.boatName || e.name)) || 'Båt'; }
+
+function initLiveMap() {
+  if (liveMap || !window.L || !el.liveMap) return;
+  liveMap = L.map(el.liveMap, { zoomControl: true }).setView(RACE_CENTER, RACE_ZOOM);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '© OpenStreetMap',
+  }).addTo(liveMap);
+  L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
+    maxZoom: 18, opacity: 0.9,
+  }).addTo(liveMap);
+  L.circleMarker(RACE_CENTER, { radius: 7, color: '#0f2c47', weight: 2, fillColor: '#c9a35d', fillOpacity: 1 })
+    .addTo(liveMap).bindTooltip('Start · Mål');
+  setTimeout(() => liveMap && liveMap.invalidateSize(), 250);
+}
+
+async function loadPositions() {
+  if (!sb) return;
+  try {
+    const { data, error } = await sb.from('boat_positions').select('*');
+    if (error) throw error;
+    state.positions = data || [];
+  } catch {
+    state.positions = []; // tabellen finns kanske inte än (före migrationen)
+  }
+  renderLive();
+}
+
+function fmtAge(ms) {
+  const s = Math.floor(ms / 1000);
+  if (s < 10) return 'nyss';
+  if (s < 60) return `${s} s sedan`;
+  return `${Math.floor(s / 60)} min sedan`;
+}
+
+function renderLive() {
+  const positions = state.positions || [];
+  if (el.liveEmpty) el.liveEmpty.hidden = positions.length > 0;
+
+  if (liveMap && window.L) {
+    const seen = new Set(), bounds = [];
+    positions.forEach((p) => {
+      const id = String(p.registration_id);
+      seen.add(id);
+      const stale = (Date.now() - new Date(p.updated_at).getTime()) > STALE_MS;
+      const icon = L.divIcon({
+        className: '', iconSize: [0, 0],
+        html: `<div class="boat-pin ${stale ? 'stale' : ''}">${escapeHtml(boatLabel(id))}</div>`,
+      });
+      if (liveMarkers[id]) liveMarkers[id].setLatLng([p.lat, p.lng]).setIcon(icon);
+      else liveMarkers[id] = L.marker([p.lat, p.lng], { icon }).addTo(liveMap);
+      bounds.push([p.lat, p.lng]);
+    });
+    Object.keys(liveMarkers).forEach((id) => {
+      if (!seen.has(id)) { liveMap.removeLayer(liveMarkers[id]); delete liveMarkers[id]; }
+    });
+    if (bounds.length && !liveMapFitted) {
+      liveMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+      liveMapFitted = true;
+    }
+  }
+  renderLiveList();
+}
+
+function renderLiveList() {
+  if (!el.liveList) return;
+  const positions = (state.positions || []).slice()
+    .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+  el.liveList.innerHTML = positions.map((p) => {
+    const age = Date.now() - new Date(p.updated_at).getTime();
+    const stale = age > STALE_MS;
+    return `<li><span class="ll-dot ${stale ? 'stale' : ''}"></span>` +
+      `<span class="ll-name">${escapeHtml(boatLabel(p.registration_id))}</span>` +
+      `<span class="ll-age">${fmtAge(age)}</span></li>`;
+  }).join('');
+}
+
+function renderShareControl() {
+  if (!el.shareIdle) return;
+  el.shareActive.hidden = !sharing;
+  el.shareIdle.hidden = sharing;
+  if (sharing) return;
+  const knowMe = !!(myEntryId && myCode);
+  el.sharePick.hidden = knowMe;
+  if (!knowMe) {
+    const list = currentStartList();
+    const cur = el.shareBoat.value || (myEntryId ? String(myEntryId) : '');
+    el.shareBoat.innerHTML = '<option value="">Välj din båt …</option>' +
+      list.map((e) => `<option value="${e.id}">${escapeHtml(e.name)} · ${escapeHtml(e.boatName || '')}</option>`).join('');
+    el.shareBoat.value = list.some((e) => String(e.id) === cur) ? cur : '';
+    if (myCode && !el.shareCode.value) el.shareCode.value = myCode;
+  }
+}
+
+async function startSharing() {
+  let regId, code;
+  if (!el.sharePick.hidden) {
+    regId = el.shareBoat.value;
+    code = (el.shareCode.value || '').trim().toUpperCase();
+  } else { regId = myEntryId; code = myCode; }
+  if (!regId) { alert('Välj din båt först.'); return; }
+  if (!code) { alert('Fyll i din delningskod.'); return; }
+  if (!('geolocation' in navigator)) { alert('Din webbläsare saknar GPS-stöd.'); return; }
+
+  myEntryId = String(regId); myCode = code;
+  try { localStorage.setItem('kgr_my_entry', myEntryId); localStorage.setItem('kgr_my_code', myCode); } catch {}
+
+  sharing = true; lastPush = 0;
+  renderShareControl();
+  el.shareStatus.textContent = 'Väntar på GPS …';
+  requestWakeLock();
+  geoWatchId = navigator.geolocation.watchPosition(onGeo, onGeoErr, {
+    enableHighAccuracy: true, maximumAge: 2000, timeout: 15000,
+  });
+}
+
+function onGeoErr() {
+  el.shareStatus.textContent = 'Kunde inte läsa GPS. Tillåt platsåtkomst och försök igen.';
+}
+function onGeo(pos) {
+  const now = Date.now();
+  if (now - lastPush < 2500) return;
+  lastPush = now;
+  pushPosition(pos.coords);
+}
+async function pushPosition(c) {
+  if (!sb || !sharing) return;
+  try {
+    const { error } = await sb.rpc('share_position', {
+      p_registration_id: myEntryId, p_code: myCode,
+      p_lat: c.latitude, p_lng: c.longitude,
+      p_accuracy: c.accuracy ?? null, p_speed: c.speed ?? null, p_heading: c.heading ?? null,
+    });
+    if (error) throw error;
+    const t = new Date();
+    el.shareStatus.textContent = `Senast delad ${fmtClock(t.getHours() * 3600 + t.getMinutes() * 60 + t.getSeconds())}` +
+      (c.accuracy ? ` · ±${Math.round(c.accuracy)} m` : '');
+  } catch (e) {
+    const msg = (e && e.message) || '';
+    if (/share_position|does not exist|schema cache|not find/i.test(msg)) {
+      el.shareStatus.textContent = 'Live-delning är inte aktiverad i databasen än.';
+    } else if (/kod|code/i.test(msg)) {
+      el.shareStatus.textContent = 'Fel delningskod — kontrollera koden.';
+      stopSharing();
+    } else {
+      el.shareStatus.textContent = 'Kunde inte skicka position: ' + msg;
+    }
+  }
+}
+function stopSharing() {
+  sharing = false;
+  if (geoWatchId != null) { navigator.geolocation.clearWatch(geoWatchId); geoWatchId = null; }
+  releaseWakeLock();
+  renderShareControl();
+}
+async function requestWakeLock() {
+  try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch {}
+}
+async function releaseWakeLock() {
+  try { if (wakeLock) { await wakeLock.release(); wakeLock = null; } } catch {}
+}
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && sharing && !wakeLock) requestWakeLock();
+});
+if (el.shareStartBtn) el.shareStartBtn.addEventListener('click', startSharing);
+if (el.shareStopBtn) el.shareStopBtn.addEventListener('click', stopSharing);
+
+async function loadCodes() {
+  if (!el.liveCodes) return;
+  if (!sb || !isAdmin()) { el.liveCodes.hidden = true; return; }
+  try {
+    const { data, error } = await sb.from('boat_secrets').select('registration_id, code');
+    if (error) throw error;
+    const byId = {};
+    (data || []).forEach((r) => { byId[String(r.registration_id)] = r.code; });
+    el.codesList.innerHTML = currentStartList().map((e) =>
+      `<li><span>${escapeHtml(e.boatName || e.name)}</span><span class="cc-code">${escapeHtml(byId[String(e.id)] || '—')}</span></li>`
+    ).join('');
+    el.liveCodes.hidden = false;
+  } catch { el.liveCodes.hidden = true; }
+}
+
 function renderLockState() {
   document.body.classList.toggle('locked', state.locked);
   el.lockBtn.textContent = state.locked ? 'Lås upp' : 'Lås startfältet';
@@ -446,7 +649,10 @@ function renderLockState() {
   [el.distanceNm, el.firstStart, el.maxDev].forEach((i) => { i.disabled = state.locked; });
 }
 
-function renderAll() { renderStatus(); renderLockState(); renderStartList(); renderMyStart(); }
+function renderAll() {
+  renderStatus(); renderLockState(); renderStartList(); renderMyStart();
+  renderShareControl(); renderLive(); loadCodes();
+}
 
 /* ============================================================
    7. HÄNDELSER
@@ -552,7 +758,22 @@ el.confirmBtn.addEventListener('click', async () => {
     speed_knots: round1(knots),
   };
   el.confirmBtn.disabled = true;
-  const { data: inserted, error } = await sb.from('registrations').insert(row).select('id').single();
+  lastRegCode = null;
+  let inserted = null, error = null;
+  const res = await sb.rpc('register_boat', {
+    p_name: name, p_boat_name: boatName, p_category: el.category.value,
+    p_boat_model: row.boat_model, p_engine_model: row.engine_model,
+    p_engine_power: row.engine_power, p_weight_kg: row.weight_kg, p_speed_knots: row.speed_knots,
+  });
+  if (res.error && /register_boat|does not exist|schema cache|not find/i.test(res.error.message || '')) {
+    // Före migrationen: falla tillbaka på direkt insert (utan kod).
+    const ins = await sb.from('registrations').insert(row).select('id').single();
+    inserted = ins.data; error = ins.error;
+  } else {
+    error = res.error;
+    const r = Array.isArray(res.data) ? res.data[0] : res.data;
+    if (r) { inserted = { id: r.id }; lastRegCode = r.code || null; }
+  }
   el.confirmBtn.disabled = false;
   if (error) {
     el.adjustKmh.textContent = state.locked
@@ -565,6 +786,10 @@ el.confirmBtn.addEventListener('click', async () => {
     myEntryId = String(inserted.id);
     cdLastRemaining = null;
     try { localStorage.setItem('kgr_my_entry', myEntryId); } catch {}
+    if (lastRegCode) {
+      myCode = lastRegCode;
+      try { localStorage.setItem('kgr_my_code', myCode); } catch {}
+    }
   }
   resetForm();
   await loadFromDb();
@@ -573,6 +798,10 @@ el.confirmBtn.addEventListener('click', async () => {
 
 /* ---------- Tack-modal efter anmälan ---------- */
 function showThanks() {
+  if (el.thanksCode) {
+    if (lastRegCode) { el.thanksCodeVal.textContent = lastRegCode; el.thanksCode.hidden = false; }
+    else el.thanksCode.hidden = true;
+  }
   if (!el.thanksModal) {
     document.getElementById('startlista').scrollIntoView({ behavior: 'smooth', block: 'start' });
     return;
@@ -682,12 +911,24 @@ if (heroVideo) {
 /* ============================================================
    8. INIT
    ============================================================ */
-try { myEntryId = localStorage.getItem('kgr_my_entry'); } catch {}
+try {
+  myEntryId = localStorage.getItem('kgr_my_entry');
+  myCode = localStorage.getItem('kgr_my_code');
+} catch {}
 refreshSettingsInputs();
 toggleJetski();
 onScroll();
 initAdmin();
+initLiveMap();
 renderAll();
 loadFromDb();
+loadPositions();
 subscribeRealtime();
 setInterval(tickCountdown, 250);
+setInterval(renderLive, 5000); // uppdatera åldrar/gråmarkering på kartan
+
+/* Se till att kartan ritas rätt när sektionen kommer i vy (Leaflet behöver storlek). */
+window.addEventListener('load', () => { if (liveMap) liveMap.invalidateSize(); });
+window.addEventListener('hashchange', () => {
+  if (location.hash === '#live' && liveMap) setTimeout(() => liveMap.invalidateSize(), 200);
+});
