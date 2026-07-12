@@ -635,8 +635,9 @@ if (el.shareStartBtn) el.shareStartBtn.addEventListener('click', startSharing);
 if (el.shareStopBtn) el.shareStopBtn.addEventListener('click', stopSharing);
 
 async function loadCodes() {
-  if (!el.liveCodes) return;
-  if (!sb || !isAdmin()) { el.liveCodes.hidden = true; return; }
+  // Panelens synlighet styrs av CSS (body.admin .codes-card). Här fyller vi
+  // bara i koderna när arrangören är inloggad.
+  if (!el.codesList || !sb || !isAdmin()) return;
   try {
     const { data, error } = await sb.from('boat_secrets').select('registration_id, code');
     if (error) throw error;
@@ -645,8 +646,9 @@ async function loadCodes() {
     el.codesList.innerHTML = currentStartList().map((e) =>
       `<li><span>${escapeHtml(e.boatName || e.name)}</span><span class="cc-code">${escapeHtml(byId[String(e.id)] || '—')}</span></li>`
     ).join('');
-    el.liveCodes.hidden = false;
-  } catch { el.liveCodes.hidden = true; }
+  } catch {
+    el.codesList.innerHTML = '<li><span>Kunde inte hämta koder</span><span class="cc-code">—</span></li>';
+  }
 }
 
 function renderLockState() {
@@ -949,65 +951,65 @@ function tickEventCountdown() {
 }
 
 /* ============================================================
-   10. VÄDERPROGNOS (SMHI öppna data — ingen nyckel behövs)
+   10. VÄDERPROGNOS (Open-Meteo — gratis, ingen nyckel, CORS-öppet)
    ============================================================ */
-const WSYMB2 = {
-  1: ['Klart', '☀️'], 2: ['Mest klart', '🌤'], 3: ['Växlande molnighet', '⛅'], 4: ['Halvklart', '⛅'],
-  5: ['Molnigt', '☁️'], 6: ['Mulet', '☁️'], 7: ['Dimma', '🌫'],
-  8: ['Lätta regnskurar', '🌦'], 9: ['Regnskurar', '🌦'], 10: ['Kraftiga regnskurar', '🌧'],
-  11: ['Åskskurar', '⛈'], 12: ['Lätt snöblandat regn', '🌨'], 13: ['Snöblandat regn', '🌨'], 14: ['Kraftigt snöblandat regn', '🌨'],
-  15: ['Lätta snöbyar', '🌨'], 16: ['Snöbyar', '🌨'], 17: ['Kraftiga snöbyar', '❄️'],
-  18: ['Lätt regn', '🌦'], 19: ['Regn', '🌧'], 20: ['Kraftigt regn', '🌧'], 21: ['Åska', '⛈'],
-  22: ['Lätt snöblandat regn', '🌨'], 23: ['Snöblandat regn', '🌨'], 24: ['Kraftigt snöblandat regn', '🌨'],
-  25: ['Lätt snöfall', '🌨'], 26: ['Snöfall', '❄️'], 27: ['Kraftigt snöfall', '❄️'],
+const WMO = {
+  0: ['Klart', '☀️'], 1: ['Mest klart', '🌤'], 2: ['Halvklart', '⛅'], 3: ['Mulet', '☁️'],
+  45: ['Dimma', '🌫'], 48: ['Underkyld dimma', '🌫'],
+  51: ['Lätt duggregn', '🌦'], 53: ['Duggregn', '🌦'], 55: ['Tätt duggregn', '🌧'],
+  56: ['Underkylt duggregn', '🌧'], 57: ['Underkylt duggregn', '🌧'],
+  61: ['Lätt regn', '🌦'], 63: ['Regn', '🌧'], 65: ['Kraftigt regn', '🌧'],
+  66: ['Underkylt regn', '🌧'], 67: ['Underkylt regn', '🌧'],
+  71: ['Lätt snöfall', '🌨'], 73: ['Snöfall', '🌨'], 75: ['Kraftigt snöfall', '❄️'], 77: ['Snökorn', '🌨'],
+  80: ['Lätta regnskurar', '🌦'], 81: ['Regnskurar', '🌧'], 82: ['Kraftiga regnskurar', '⛈'],
+  85: ['Lätta snöbyar', '🌨'], 86: ['Snöbyar', '❄️'],
+  95: ['Åska', '⛈'], 96: ['Åska med hagel', '⛈'], 99: ['Åska med hagel', '⛈'],
 };
 const WIND_DIRS = ['N', 'NO', 'O', 'SO', 'S', 'SV', 'V', 'NV'];
 function windCompass(deg) { return WIND_DIRS[Math.round((Number(deg) || 0) / 45) % 8]; }
-function paramVal(pt, name) {
-  const p = (pt.parameters || []).find((x) => x.name === name);
-  return p ? p.values[0] : null;
-}
 
 async function loadWeather() {
   if (!el.weatherBody) return;
   const [lat, lon] = RACE_CENTER;
-  const url = `https://opendata-download-metfcst.smhi.se/api/category/pmp3g/version/2/geotype/point/lon/${lon.toFixed(4)}/lat/${lat.toFixed(4)}/data.json`;
+  const url = 'https://api.open-meteo.com/v1/forecast'
+    + `?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}`
+    + '&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,relative_humidity_2m'
+    + '&wind_speed_unit=ms&timezone=Europe%2FStockholm&forecast_days=16';
   try {
     const res = await fetch(url);
-    if (!res.ok) throw new Error('SMHI ' + res.status);
-    const data = await res.json();
-    const series = data.timeSeries || [];
-    if (!series.length) throw new Error('tom prognos');
-    const target = eventStartMs();
-    const last = new Date(series[series.length - 1].validTime).getTime();
-    if (target > last + 3600 * 1000) {
-      renderWeatherNote('SMHI:s prognos sträcker sig cirka 10 dygn framåt. Kom tillbaka närmare loppet så visas väderläget vid starten här.');
+    if (!res.ok) throw new Error('Open-Meteo ' + res.status);
+    const h = (await res.json()).hourly;
+    if (!h || !h.time || !h.time.length) throw new Error('tom prognos');
+    // Open-Meteo ger lokala tider (Europe/Stockholm) som "YYYY-MM-DDTHH:00".
+    const hh = String(Math.floor(clockToSec(state.settings.firstStart) / 3600)).padStart(2, '0');
+    let idx = h.time.indexOf(`${RACE_DATE}T${hh}:00`);
+    if (idx < 0) {
+      // Annan startminut/-timme — ta närmaste timme samma dygn.
+      const day = h.time.map((t, i) => [t, i]).filter(([t]) => t.startsWith(RACE_DATE + 'T'));
+      if (day.length) {
+        const th = Number(hh);
+        idx = day.reduce((b, [t, i]) => Math.abs(+t.slice(11, 13) - th) < Math.abs(+h.time[b].slice(11, 13) - th) ? i : b, day[0][1]);
+      }
+    }
+    if (idx < 0) {
+      renderWeatherNote('Prognosen sträcker sig cirka två veckor framåt. Kom tillbaka närmare loppet så visas väderläget vid starten här.');
       return;
     }
-    let best = series[0], bestDiff = Infinity;
-    for (const pt of series) {
-      const diff = Math.abs(new Date(pt.validTime).getTime() - target);
-      if (diff < bestDiff) { bestDiff = diff; best = pt; }
-    }
-    renderWeather(best);
+    renderWeather(h, idx);
   } catch {
     renderWeatherNote('Kunde inte hämta väderprognosen just nu — försök igen senare.');
   }
 }
-function renderWeather(pt) {
-  const t = paramVal(pt, 't');
-  const ws = paramVal(pt, 'ws');
-  const wd = paramVal(pt, 'wd');
-  const gust = paramVal(pt, 'gust');
-  const [desc, emoji] = WSYMB2[paramVal(pt, 'Wsymb2')] || ['—', '⛅'];
+function renderWeather(h, i) {
+  const [desc, emoji] = WMO[h.weather_code[i]] || ['—', '⛅'];
+  const t = h.temperature_2m[i], ws = h.wind_speed_10m[i], wd = h.wind_direction_10m[i];
+  const gust = h.wind_gusts_10m[i], rain = h.precipitation[i], rh = h.relative_humidity_2m[i];
 
   const rows = [];
   if (ws != null) rows.push(['Vind', `${Math.round(ws)} m/s${wd != null ? ' från ' + windCompass(wd) : ''}`]);
   if (gust != null) rows.push(['Byvind', `${Math.round(gust)} m/s`]);
-  const rain = (paramVal(pt, 'pmax') != null) ? paramVal(pt, 'pmax') : paramVal(pt, 'pmean');
-  if (rain != null) rows.push(['Nederbörd', rain > 0 ? `${sv(round1(rain))} mm/h` : 'Uppehåll']);
-  const r = paramVal(pt, 'r');
-  if (r != null) rows.push(['Luftfuktighet', `${Math.round(r)} %`]);
+  if (rain != null) rows.push(['Nederbörd', rain > 0 ? `${sv(round1(rain))} mm` : 'Uppehåll']);
+  if (rh != null) rows.push(['Luftfuktighet', `${Math.round(rh)} %`]);
 
   el.weatherBody.innerHTML =
     '<div class="weather-main">' +
@@ -1018,12 +1020,11 @@ function renderWeather(pt) {
     '<div class="weather-grid">' +
       rows.map(([k, v]) => `<div class="weather-metric"><span class="wm-k">${escapeHtml(k)}</span><span class="wm-v">${escapeHtml(v)}</span></div>`).join('') +
     '</div>';
-  const when = new Date(pt.validTime);
-  el.weatherFoot.textContent = `Prognos för ${when.toLocaleString('sv-SE', { weekday: 'long', hour: '2-digit', minute: '2-digit' })} · källa SMHI`;
+  el.weatherFoot.textContent = 'Prognos vid start (15 juli 13:00) · källa Open-Meteo';
 }
 function renderWeatherNote(msg) {
   el.weatherBody.innerHTML = `<p class="weather-note">${escapeHtml(msg)}</p>`;
-  if (el.weatherFoot) el.weatherFoot.textContent = 'Prognos: SMHI';
+  if (el.weatherFoot) el.weatherFoot.textContent = 'Prognos: Open-Meteo';
 }
 
 /* ============================================================

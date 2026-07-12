@@ -500,6 +500,7 @@ body.admin .admin-link { color: var(--gold-bright); }
 /* Admin-läge — organisatörskontroller döljs för publik */
 .admin-only { display: none !important; }
 body.admin .settings-card.admin-only { display: block !important; }
+body.admin .codes-card.admin-only { display: block !important; }
 body.admin .btn.admin-only { display: inline-flex !important; }
 body:not(.admin) .panel-grid { grid-template-columns: 1fr; }
 
@@ -716,11 +717,12 @@ body:not(.admin) .panel-grid { grid-template-columns: 1fr; }
 .korv-grid { grid-template-columns: 1.4fr 1fr; }
 body:not(.admin) .korv-grid { grid-template-columns: 1.4fr 1fr; }
 .korv-tally-card { align-self: stretch; }
-.korv-tally { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 8px 0 4px; text-align: center; }
+.korv-tally { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 8px 0 4px; text-align: center; }
 .kt-item {
   background: var(--mist); border: 1px solid var(--line); border-radius: var(--r-md);
-  padding: 16px 8px; display: flex; flex-direction: column; gap: 2px;
+  padding: 16px 6px; min-width: 0; display: flex; flex-direction: column; gap: 2px;
 }
+.kt-lbl { line-height: 1.15; }
 .kt-num { font-family: var(--serif); font-weight: 700; font-size: 2rem; color: var(--sea-deep); line-height: 1; font-variant-numeric: tabular-nums; }
 .kt-lbl { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--slate); font-weight: 600; }
 .korv-tally-card .muted { margin: 6px 0 0; }
