@@ -841,6 +841,7 @@ async function loadCodes() {
           `<button type="button" class="cc-copy" data-link="${escapeHtml(link)}">Kopiera länk</button>`;
       }
       return `<li><span class="cc-boat">${escapeHtml(e.boatName || e.name)}</span>` +
+        `<span class="cc-name">${escapeHtml(e.name || '')}</span>` +
         `<span class="cc-code">${escapeHtml(code)}</span>${actions}</li>`;
     }).join('');
     el.codesList.querySelectorAll('.cc-copy').forEach((b) =>
