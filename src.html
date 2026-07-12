@@ -63,6 +63,7 @@
         <a href="#om">Racet</a>
         <a href="#banan">Banan</a>
         <a href="#anmalan">Anmälan</a>
+        <a href="#min-start">Min start</a>
         <a href="#startlista">Startlista</a>
         <a href="#anmalan" class="nav-cta">Anmäl dig</a>
       </nav>
@@ -334,8 +335,45 @@
     </div>
   </section>
 
+  <!-- ===== Min start (nedräkning) ===== -->
+  <section class="section" id="min-start">
+    <div class="wrap">
+      <div class="section-head center">
+        <p class="eyebrow">Din start</p>
+        <h2>Nedräkning till din starttid</h2>
+        <p class="lead">Välj din båt så räknar vi ner sekunderna till exakt när du ska lämna
+          startlinjen. Ha sidan öppen ombord — klockan uppdateras i realtid.</p>
+      </div>
+
+      <div class="card countdown-card" id="countdownCard">
+        <label class="field cd-picker" id="cdPicker">
+          <span class="label-text">Vilken båt är din?</span>
+          <select id="myEntrySelect">
+            <option value="">Välj din båt …</option>
+          </select>
+        </label>
+
+        <div class="cd-body" id="cdBody" hidden>
+          <div class="cd-status" id="cdStatus"></div>
+          <div class="cd-boat" id="cdBoat"></div>
+          <div class="cd-clock">
+            <span class="cd-time" id="cdTime">–:–</span>
+            <span class="cd-time-label" id="cdTimeLabel">till din start</span>
+          </div>
+          <div class="cd-meta" id="cdMeta"></div>
+        </div>
+
+        <div class="cd-empty" id="cdEmpty">
+          <div class="empty-mark" aria-hidden="true">⏱</div>
+          <p>Inga anmälda ännu — kom tillbaka när fältet fyllts på, eller
+            <a href="#anmalan">anmäl din båt</a> först.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ===== Startlista ===== -->
-  <section class="section" id="startlista">
+  <section class="section alt" id="startlista">
     <div class="wrap">
       <div class="section-head center">
         <p class="eyebrow">Startordning</p>
@@ -420,7 +458,8 @@
       <img class="thanks-photo" id="thanksPhoto" src="__TACK_IMG__" alt="Styrelsen för Sthlmsveckorna" />
       <p class="thanks-text" id="thanksTitle">Styrelsen för Sthlmsveckorna tackar för din anmälan.</p>
       <div class="modal-actions">
-        <button type="button" class="btn btn-primary" id="thanksCloseBtn">Till startlistan</button>
+        <button type="button" class="btn btn-ghost" id="thanksCloseBtn">Till startlistan</button>
+        <button type="button" class="btn btn-primary" id="thanksCountdownBtn">Se din nedräkning</button>
       </div>
     </div>
   </div>

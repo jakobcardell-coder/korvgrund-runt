@@ -521,6 +521,59 @@ body:not(.admin) .panel-grid { grid-template-columns: 1fr; }
   .hero-cta .btn { flex: 1; }
 }
 
+/* ===================== Min start (nedräkning) ===================== */
+.countdown-card { max-width: 640px; margin: 0 auto; text-align: center; }
+.cd-picker { text-align: left; margin-bottom: 26px; }
+.cd-status {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 0.84rem; font-weight: 600; letter-spacing: 0.01em;
+  padding: 7px 15px; border-radius: 999px; border: 1px solid var(--line-strong);
+  margin-bottom: 20px;
+}
+.cd-status.prelim { color: var(--gold-ink); background: #faf3e6; border-color: #ecdcbd; }
+.cd-status.official { color: var(--sea-deep); background: #eaf4fb; border-color: #cae2f2; }
+.cd-boat { margin-bottom: 12px; }
+.cd-boat-name {
+  display: block; font-family: var(--serif); font-style: italic; font-weight: 600;
+  font-size: 1.7rem; color: var(--sea-deep); line-height: 1.1;
+}
+.cd-boat-sub { display: block; font-size: 0.9rem; color: var(--slate); margin-top: 4px; }
+.cd-clock { margin: 6px 0 30px; }
+.cd-time {
+  display: block; font-family: var(--serif); font-weight: 700;
+  font-size: clamp(4rem, 22vw, 7.5rem); line-height: 0.92; color: var(--navy);
+  font-variant-numeric: tabular-nums; letter-spacing: 0.01em;
+}
+.cd-time-label {
+  display: block; font-size: 0.82rem; color: var(--slate); margin-top: 10px;
+  letter-spacing: 0.1em; text-transform: uppercase;
+}
+.cd-meta { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; }
+.cd-meta-item {
+  min-width: 132px; padding: 13px 18px; border: 1px solid var(--line);
+  border-radius: var(--r-md); background: var(--mist);
+}
+.cd-meta-k {
+  display: block; font-size: 0.7rem; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--slate);
+}
+.cd-meta-v {
+  display: block; font-family: var(--serif); font-weight: 600; font-size: 1.35rem;
+  color: var(--navy); font-variant-numeric: tabular-nums; margin-top: 3px;
+}
+.cd-empty { text-align: center; color: var(--slate); }
+.cd-empty p { margin-top: 6px; }
+/* GÅ-läge — din start har passerat */
+.countdown-card.cd-go .cd-time { color: var(--coral); animation: cdPulse 1s ease-in-out infinite; }
+.countdown-card.cd-go .cd-time-label { color: var(--coral); font-weight: 700; }
+@keyframes cdPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.06); opacity: 0.82; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .countdown-card.cd-go .cd-time { animation: none; }
+}
+
 /* ===================== Utskrift ===================== */
 @media print {
   .nav, .hero, .section:not(#startlista), .site-foot, .list-controls, .no-print, .col-act, .status-banner { display: none !important; }

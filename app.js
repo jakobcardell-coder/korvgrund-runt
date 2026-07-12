@@ -7,6 +7,10 @@
 
 const KMH_PER_KNOT = 1.852;
 
+/* Racedag för nedräkningen. Startklockslaget (t.ex. 13:00) kommer från
+   arrangörsinställningarna; datumet sätts här. Ändra om racet flyttas. */
+const RACE_DATE = '2026-07-15'; // onsdag 15 juli
+
 /* Delad databas (Supabase). anon-nyckeln är publik och säker att ligga i
    webbläsaren — behörighet styrs server-sidan av Row Level Security:
    alla får läsa och anmäla sig, men bara inloggad arrangör får ta bort,
@@ -261,7 +265,10 @@ const el = {
   listTitle: $('listTitle'), listSub: $('listSub'), listBadge: $('listBadge'), listCount: $('listCount'),
   fineprint: $('fineprint'), listCard: $('listCard'),
   nav: $('siteNav'), navToggle: $('navToggle'), navLinks: $('navLinks'), adminLink: $('adminLink'),
-  thanksModal: $('thanksModal'), thanksCloseBtn: $('thanksCloseBtn'),
+  thanksModal: $('thanksModal'), thanksCloseBtn: $('thanksCloseBtn'), thanksCountdownBtn: $('thanksCountdownBtn'),
+  countdownCard: $('countdownCard'), cdPicker: $('cdPicker'), myEntrySelect: $('myEntrySelect'),
+  cdBody: $('cdBody'), cdEmpty: $('cdEmpty'), cdStatus: $('cdStatus'), cdBoat: $('cdBoat'),
+  cdTime: $('cdTime'), cdTimeLabel: $('cdTimeLabel'), cdMeta: $('cdMeta'),
   adminModal: $('adminModal'), adminForm: $('adminForm'), adminEmail: $('adminEmail'),
   adminPassword: $('adminPassword'), adminLoginBtn: $('adminLoginBtn'), adminCancelBtn: $('adminCancelBtn'), adminError: $('adminError'),
 };
@@ -336,6 +343,102 @@ function renderStartList() {
   } else { el.fineprint.textContent = ''; }
 }
 
+/* ---------- Min start: nedräkning till egen starttid ---------- */
+let myEntryId = null;      // vald båt (id som sträng)
+let cdLastRemaining = null; // för att känna av T-0-passagen (vibration)
+
+function raceDayMidnightMs() {
+  // Lokal midnatt på racedagen; starttiden läggs på som sekunder.
+  return new Date(`${RACE_DATE}T00:00:00`).getTime();
+}
+function fmtCountdown(ms) {
+  const total = Math.floor(ms / 1000);
+  const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), s = total % 60;
+  return h > 0
+    ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function currentStartList() {
+  return computeStartList(state.entries, state.settings.distanceNm, clockToSec(state.settings.firstStart));
+}
+
+function renderMyStart() {
+  if (!el.myEntrySelect) return;
+  const list = currentStartList();
+  const has = list.length > 0;
+  el.cdEmpty.hidden = has;
+  el.cdPicker.hidden = !has;
+
+  const cur = myEntryId ? String(myEntryId) : '';
+  el.myEntrySelect.innerHTML =
+    '<option value="">Välj din båt …</option>' +
+    list.map((e) =>
+      `<option value="${e.id}">${escapeHtml(e.name)} · ${escapeHtml(e.boatName || '')} (start ${fmtClock(e.startSec)})</option>`
+    ).join('');
+
+  const me = list.find((e) => String(e.id) === cur);
+  // Nolla bara valet om fältet är laddat men båten saknas — inte medan datan
+  // fortfarande hämtas (då är listan tom och valet ska bevaras).
+  if (has && cur && !me) {
+    myEntryId = null;
+    try { localStorage.removeItem('kgr_my_entry'); } catch {}
+  }
+  el.myEntrySelect.value = me ? cur : '';
+
+  if (me) {
+    el.cdBody.hidden = false;
+    el.cdBoat.innerHTML =
+      `<span class="cd-boat-name">${escapeHtml(me.boatName || me.name)}</span>` +
+      `<span class="cd-boat-sub">${escapeHtml(me.name)} · plats ${me.place} av ${list.length}</span>`;
+    const rel = fmtRelative(me.relOffsetMin);
+    el.cdMeta.innerHTML =
+      `<div class="cd-meta-item"><span class="cd-meta-k">Starttid</span><span class="cd-meta-v">${fmtClock(me.startSec)}</span></div>` +
+      `<div class="cd-meta-item"><span class="cd-meta-k">Före snabbaste</span><span class="cd-meta-v">${rel.text}</span></div>` +
+      (me.isFastest ? `<div class="cd-meta-item"><span class="cd-meta-k">Position</span><span class="cd-meta-v">Sist ut</span></div>` : '');
+    el.cdStatus.textContent = state.locked
+      ? '✓ Officiell starttid — fältet är låst'
+      : '⚠ Preliminär — kan ändras tills arrangören låser fältet';
+    el.cdStatus.className = 'cd-status ' + (state.locked ? 'official' : 'prelim');
+  } else {
+    el.cdBody.hidden = true;
+    el.countdownCard.classList.remove('cd-go');
+  }
+  tickCountdown();
+}
+
+function tickCountdown() {
+  if (!el.cdBody || el.cdBody.hidden || !myEntryId) return;
+  const me = currentStartList().find((e) => String(e.id) === String(myEntryId));
+  if (!me) return;
+  const remaining = (raceDayMidnightMs() + me.startSec * 1000) - Date.now();
+  if (remaining > 0) {
+    el.cdTime.textContent = fmtCountdown(remaining);
+    el.cdTimeLabel.textContent = 'till din start';
+    el.countdownCard.classList.remove('cd-go');
+  } else {
+    el.cdTime.textContent = 'START!';
+    el.cdTimeLabel.textContent = `Din tid gick ${fmtClock(me.startSec)}`;
+    el.countdownCard.classList.add('cd-go');
+  }
+  if (cdLastRemaining !== null && cdLastRemaining > 0 && remaining <= 0 && navigator.vibrate) {
+    navigator.vibrate([300, 120, 300, 120, 600]);
+  }
+  cdLastRemaining = remaining;
+}
+
+if (el.myEntrySelect) {
+  el.myEntrySelect.addEventListener('change', () => {
+    myEntryId = el.myEntrySelect.value || null;
+    try {
+      if (myEntryId) localStorage.setItem('kgr_my_entry', myEntryId);
+      else localStorage.removeItem('kgr_my_entry');
+    } catch {}
+    cdLastRemaining = null;
+    renderMyStart();
+  });
+}
+
 function renderLockState() {
   document.body.classList.toggle('locked', state.locked);
   el.lockBtn.textContent = state.locked ? 'Lås upp' : 'Lås startfältet';
@@ -343,7 +446,7 @@ function renderLockState() {
   [el.distanceNm, el.firstStart, el.maxDev].forEach((i) => { i.disabled = state.locked; });
 }
 
-function renderAll() { renderStatus(); renderLockState(); renderStartList(); }
+function renderAll() { renderStatus(); renderLockState(); renderStartList(); renderMyStart(); }
 
 /* ============================================================
    7. HÄNDELSER
@@ -449,7 +552,7 @@ el.confirmBtn.addEventListener('click', async () => {
     speed_knots: round1(knots),
   };
   el.confirmBtn.disabled = true;
-  const { error } = await sb.from('registrations').insert(row);
+  const { data: inserted, error } = await sb.from('registrations').insert(row).select('id').single();
   el.confirmBtn.disabled = false;
   if (error) {
     el.adjustKmh.textContent = state.locked
@@ -457,6 +560,11 @@ el.confirmBtn.addEventListener('click', async () => {
       : ('Kunde inte spara anmälan: ' + error.message);
     el.adjustKmh.className = 'hint warn';
     return;
+  }
+  if (inserted && inserted.id != null) {
+    myEntryId = String(inserted.id);
+    cdLastRemaining = null;
+    try { localStorage.setItem('kgr_my_entry', myEntryId); } catch {}
   }
   resetForm();
   await loadFromDb();
@@ -475,7 +583,13 @@ function closeThanks() {
   if (el.thanksModal) el.thanksModal.hidden = true;
   document.getElementById('startlista').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+function goToCountdown() {
+  if (el.thanksModal) el.thanksModal.hidden = true;
+  const sec = document.getElementById('min-start');
+  if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 if (el.thanksCloseBtn) el.thanksCloseBtn.addEventListener('click', closeThanks);
+if (el.thanksCountdownBtn) el.thanksCountdownBtn.addEventListener('click', goToCountdown);
 if (el.thanksModal) el.thanksModal.addEventListener('click', (e) => { if (e.target === el.thanksModal) closeThanks(); });
 
 el.cancelEstimate.addEventListener('click', resetForm);
@@ -568,6 +682,7 @@ if (heroVideo) {
 /* ============================================================
    8. INIT
    ============================================================ */
+try { myEntryId = localStorage.getItem('kgr_my_entry'); } catch {}
 refreshSettingsInputs();
 toggleJetski();
 onScroll();
@@ -575,3 +690,4 @@ initAdmin();
 renderAll();
 loadFromDb();
 subscribeRealtime();
+setInterval(tickCountdown, 250);
