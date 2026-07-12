@@ -471,6 +471,35 @@ let sharing = false, geoWatchId = null, wakeLock = null, lastPush = 0;
 function entryById(id) { return state.entries.find((e) => String(e.id) === String(id)); }
 function boatLabel(id) { const e = entryById(id); return (e && (e.boatName || e.name)) || 'Båt'; }
 
+/* Unik, stabil färg per båt (samma id → samma färg, oberoende av fältets storlek).
+   Färgen används både på kartnålen och på pricken i race-tavlan. */
+const BOAT_COLORS = [
+  '#e5484d', '#2f7fb0', '#1f9d55', '#e8912d', '#8a4fd0', '#d6409f', '#0d9488',
+  '#c2410c', '#3b5bdb', '#0ea5b7', '#7a9c1f', '#b5893f', '#d64550', '#6741d9',
+];
+function hashId(id) {
+  let h = 0; const s = String(id);
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+}
+function boatColor(id) { return BOAT_COLORS[hashId(id) % BOAT_COLORS.length]; }
+
+/* Båtformad kartnål (topvy), färgad per båt och roterad efter kurs. */
+const BOAT_HULL = 'M14 2.4 C 19 7 20.6 15 19 24 L 9 24 C 7.4 15 9 7 14 2.4 Z';
+const BOAT_DECK = 'M14 6 C 16.4 9 17.3 15 16.4 21.5 L 11.6 21.5 C 10.7 15 11.6 9 14 6 Z';
+function boatMarkerHtml(id, heading, stale) {
+  const c = boatColor(id);
+  const rot = (heading != null && !isNaN(Number(heading))) ? Number(heading) : 0;
+  return `<div class="boat-mark${stale ? ' stale' : ''}">` +
+    `<span class="boat-glyph" style="transform:rotate(${rot}deg)">` +
+      `<svg viewBox="0 0 28 28" width="30" height="30" aria-hidden="true">` +
+        `<path d="${BOAT_HULL}" fill="${c}" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/>` +
+        `<path d="${BOAT_DECK}" fill="rgba(255,255,255,0.6)"/>` +
+      `</svg></span>` +
+    `<span class="boat-tag" style="--bc:${c}">${escapeHtml(boatLabel(id))}</span>` +
+  `</div>`;
+}
+
 /* Personlig länk: öppnar Följ live med båt + kod förifyllt (koden ligger i
    query-strängen och plockas bort ur adressfältet direkt vid öppning). */
 function personalLink(id, code) {
@@ -599,7 +628,7 @@ function renderLive() {
       const stale = (Date.now() - new Date(p.updated_at).getTime()) > STALE_MS;
       const icon = L.divIcon({
         className: '', iconSize: [0, 0],
-        html: `<div class="boat-pin ${stale ? 'stale' : ''}">${escapeHtml(boatLabel(id))}</div>`,
+        html: boatMarkerHtml(id, p.heading, stale),
       });
       if (liveMarkers[id]) liveMarkers[id].setLatLng([p.lat, p.lng]).setIcon(icon);
       else liveMarkers[id] = L.marker([p.lat, p.lng], { icon }).addTo(liveMap);
@@ -652,7 +681,7 @@ function renderLiveList() {
       `<span class="ll-rank">${prog.finished ? '🏁' : i + 1}</span>` +
       `<span class="ll-main">` +
         `<span class="ll-name">${escapeHtml(boatLabel(p.registration_id))}</span>` +
-        `<span class="ll-sub"><span class="ll-dot${stale ? ' stale' : ''}"></span>${fmtAge(age)} · ${spd}${est}</span>` +
+        `<span class="ll-sub"><span class="ll-dot${stale ? ' stale' : ''}"${stale ? '' : ` style="background:${boatColor(p.registration_id)}"`}></span>${fmtAge(age)} · ${spd}${est}</span>` +
         `<span class="ll-bar"><span class="ll-bar-fill" style="width:${prog.pct}%"></span></span>` +
       `</span>` +
       `<span class="ll-meta">${eta}<span class="ll-pct">${prog.pct}%</span></span>` +

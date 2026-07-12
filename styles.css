@@ -629,14 +629,17 @@ body:not(.admin) .panel-grid { grid-template-columns: 1fr; }
   background: rgba(244,248,252,0.72); backdrop-filter: blur(2px);
 }
 .live-empty .empty-mark { font-size: 2.2rem; }
-/* Kartnål (båt) */
-.boat-pin {
-  background: var(--navy); color: #fff; font-weight: 700; font-size: 0.78rem;
-  padding: 4px 9px; border-radius: 30px; white-space: nowrap;
-  border: 2px solid #fff; box-shadow: 0 4px 12px -4px rgba(15,44,71,0.6);
-  font-family: var(--sans); transform: translate(-50%, -50%);
+/* Kartnål (båt) — båtformad SVG, unik färg per båt, roterad efter kurs */
+.boat-mark { position: relative; width: 30px; height: 30px; transform: translate(-50%, -50%); }
+.boat-glyph { display: block; width: 30px; height: 30px; transition: transform 0.5s ease; }
+.boat-glyph svg { display: block; filter: drop-shadow(0 3px 5px rgba(15,44,71,0.4)); }
+.boat-tag {
+  position: absolute; top: 31px; left: 50%; transform: translateX(-50%);
+  background: #fff; color: var(--navy); font-family: var(--sans); font-weight: 700;
+  font-size: 0.72rem; padding: 2px 8px; border-radius: 20px; white-space: nowrap;
+  border: 2px solid var(--bc, var(--navy)); box-shadow: 0 3px 10px -5px rgba(15,44,71,0.55);
 }
-.boat-pin.stale { background: var(--slate); opacity: 0.7; }
+.boat-mark.stale { filter: grayscale(0.85); opacity: 0.6; }
 
 .live-list { list-style: none; padding: 0; margin: 22px auto 0; max-width: 760px;
   display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
