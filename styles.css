@@ -443,6 +443,8 @@ select {
 .speed-knots { font-weight: 700; color: var(--navy); }
 .speed-knots .u { color: var(--gold-ink); font-weight: 600; font-size: 0.82em; }
 .speed-kmh { color: var(--slate); font-size: 0.8rem; }
+.run-time { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--navy); }
+.run-unit { color: var(--slate); font-size: 0.8rem; }
 .rel-time { font-variant-numeric: tabular-nums; color: var(--sea-deep); font-weight: 600; }
 .rel-time.zero { color: var(--gold-ink); }
 .clock-time { font-variant-numeric: tabular-nums; font-family: var(--serif); font-size: 1.25rem; font-weight: 600; color: var(--navy); }

@@ -188,6 +188,10 @@ function fmtDurationMin(min) {
   const total = Math.round(min * 60), m = Math.floor(total / 60), s = total % 60;
   return `${m} min ${String(s).padStart(2, '0')} s`;
 }
+function fmtDurationShort(min) {
+  const total = Math.round(min * 60), m = Math.floor(total / 60), s = total % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
 
 /* ============================================================
    4. DELAD DATA (Supabase i realtid)
@@ -349,6 +353,7 @@ function renderStartList() {
           <div class="speed-knots">${sv(round1(e.speedKnots))} <span class="u">kn</span></div>
           <div class="speed-kmh">${sv(round1(knotsToKmh(e.speedKnots)))} km/h</div>
         </td>
+        <td class="col-run"><span class="run-time">${fmtDurationShort(e.runtime)}</span> <span class="run-unit">min</span></td>
         <td class="col-rel"><span class="rel-time ${rel.zero ? 'zero' : ''}">${rel.text}</span></td>
         <td class="col-clock"><span class="clock-time">${fmtClock(e.startSec)}</span></td>
         <td class="col-finish"><span class="finish-time">${fmtClock(e.finishSec)}</span></td>
