@@ -161,7 +161,8 @@ function computeStartList(entries, distanceNm, firstStartSec) {
   const enriched = withRt.map((e) => {
     const relOffset = e.runtime - minRt;
     const startSec = firstStartSec + (maxOffset - relOffset) * 60;
-    return { ...e, relOffsetMin: relOffset, startSec, isFastest: e.runtime === minRt };
+    const finishSec = startSec + e.runtime * 60;
+    return { ...e, relOffsetMin: relOffset, startSec, finishSec, isFastest: e.runtime === minRt };
   });
   enriched.sort((a, b) => a.startSec - b.startSec || a.name.localeCompare(b.name, 'sv'));
   enriched.forEach((e, i) => { e.place = i + 1; });
@@ -350,6 +351,7 @@ function renderStartList() {
         </td>
         <td class="col-rel"><span class="rel-time ${rel.zero ? 'zero' : ''}">${rel.text}</span></td>
         <td class="col-clock"><span class="clock-time">${fmtClock(e.startSec)}</span></td>
+        <td class="col-finish"><span class="finish-time">${fmtClock(e.finishSec)}</span></td>
         ${del}
       </tr>`;
   }).join('');
@@ -362,6 +364,7 @@ function renderStartList() {
     const fastest = list.find((e) => e.isFastest);
     el.fineprint.textContent =
       `Sträcka ${sv(dist)} nm · körtid snabbaste båt ${fmtDurationMin(runtimeMin(dist, fastest.speedKnots))} · ` +
+      `beräknad gemensam målgång ${fmtClock(list[0].finishSec)} · ` +
       `${list.length} deltagare. Startklocka baserad på första start ${state.settings.firstStart}.`;
   } else { el.fineprint.textContent = ''; }
 }
