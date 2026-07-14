@@ -67,6 +67,7 @@
         <a href="#infor">Inför loppet</a>
         <a href="#anmalan">Anmälan</a>
         <a href="#min-start">Min start</a>
+        <a href="#startfunktionar" class="nav-admin">Starta</a>
         <a href="#live">Följ live</a>
         <a href="#startlista">Startlista</a>
         <a href="#anmalan" class="nav-cta">Anmäl dig</a>
@@ -428,6 +429,28 @@
           <p>Inga anmälda ännu — kom tillbaka när fältet fyllts på, eller
             <a href="#anmalan">anmäl din båt</a> först.</p>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Startfunktionär (endast arrangör) ===== -->
+  <section class="section alt admin-only starter-section" id="startfunktionar">
+    <div class="wrap">
+      <div class="section-head center">
+        <p class="eyebrow">Startfunktionär</p>
+        <h2>Skicka iväg fältet</h2>
+        <p class="lead">Nästa båt att starta visas automatiskt med nedräkning till sin exakta
+          starttid. De sista tio sekunderna växer siffrorna — när båten gått fram tar nedräkningen
+          för nästa båt vid av sig själv.</p>
+      </div>
+
+      <div class="card starter-card" id="starterCard">
+        <div class="starter-toolbar">
+          <button type="button" class="btn btn-primary starter-focus-enter" id="starterFocusBtn">⛶ Fokusläge</button>
+          <button type="button" class="btn btn-ghost" id="starterSoundBtn" aria-pressed="false">🔇 Ljud av</button>
+          <button type="button" class="btn btn-ghost starter-exit" id="starterExitBtn">✕ Stäng fokusläge</button>
+        </div>
+        <div class="starter-stage" id="starterStage"></div>
       </div>
     </div>
   </section>

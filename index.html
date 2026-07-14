@@ -518,6 +518,9 @@ body.admin .admin-link { color: var(--gold-bright); }
 body.admin .settings-card.admin-only { display: block !important; }
 body.admin .codes-card.admin-only { display: block !important; }
 body.admin .btn.admin-only { display: inline-flex !important; }
+body.admin .starter-section.admin-only { display: block !important; }
+.nav-admin { display: none !important; }
+body.admin .nav-admin { display: inline-flex !important; }
 body:not(.admin) .panel-grid { grid-template-columns: 1fr; }
 
 /* ===================== Responsivt ===================== */
@@ -606,6 +609,91 @@ body:not(.admin) .panel-grid { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {
   .countdown-card.cd-go .cd-time { animation: none; }
+}
+
+/* ===================== Startfunktionär ===================== */
+.starter-card { max-width: 720px; margin: 0 auto; text-align: center; }
+.starter-toolbar { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; }
+.starter-exit { display: none; }
+.starter-stage {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 320px;
+}
+.starter-pos {
+  font-size: 0.74rem; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--slate); font-weight: 600;
+}
+.starter-current { margin: 8px 0 2px; }
+.starter-cur-name {
+  display: block; font-family: var(--serif); font-style: italic; font-weight: 600;
+  font-size: clamp(1.6rem, 6vw, 2.4rem); color: var(--sea-deep); line-height: 1.08;
+}
+.starter-cur-sub { display: block; font-size: 0.9rem; color: var(--slate); margin-top: 6px; }
+.starter-clock { margin: 14px 0 4px; }
+.starter-clock > * {
+  display: block; font-family: var(--serif); font-weight: 700; color: var(--navy);
+  font-size: clamp(3.4rem, 15vw, 5.5rem); line-height: 0.9;
+  font-variant-numeric: tabular-nums; letter-spacing: 0.01em;
+}
+.starter-clock.imminent > * { font-size: clamp(6rem, 34vw, 11rem); color: var(--sea-deep); }
+.starter-clock.go > * { color: #1f9d57; font-size: clamp(5rem, 24vw, 9rem); }
+.starter-clock-label {
+  font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--slate); margin-top: 8px;
+}
+.starter-clock.go + .starter-clock-label { color: #1f9d57; font-weight: 700; }
+.starter-ondeck {
+  margin-top: 26px; padding: 14px 22px; border: 1px solid var(--line-strong);
+  border-radius: var(--r-md); background: var(--mist); min-width: 240px;
+}
+.starter-ondeck.last { background: #faf3e6; border-color: #ecdcbd; }
+.starter-ondeck-label {
+  display: block; font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--slate);
+}
+.starter-ondeck-name {
+  display: block; font-family: var(--serif); font-style: italic; font-weight: 600;
+  font-size: 1.25rem; color: var(--navy); margin-top: 4px;
+}
+.starter-ondeck-sub { display: block; font-size: 0.84rem; color: var(--slate); margin-top: 2px; }
+.starter-msg { text-align: center; color: var(--slate); }
+.starter-msg-mark { font-size: 2.6rem; opacity: 0.7; display: block; margin-bottom: 8px; }
+.starter-soundbtn.on, #starterSoundBtn.on { border-color: var(--sea-deep); color: var(--sea-deep); background: #eaf4fb; }
+
+/* Puls när ny sekund visas (sista 10) + blink vid GÅ */
+.starter-clock.imminent > *.tick { animation: stTick 0.5s ease-out; }
+@keyframes stTick { 0% { transform: scale(1.35); opacity: 0.45; } 100% { transform: scale(1); opacity: 1; } }
+.starter-clock.go.flash > * { animation: stFlash 0.6s ease-out; }
+@keyframes stFlash { 0% { transform: scale(0.6); opacity: 0; } 55% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); } }
+
+/* Fokusläge — täcker skärmen, mörk marin botten */
+body.starter-focus { overflow: hidden; }
+body.starter-focus #starterCard {
+  position: fixed; inset: 0; z-index: 200; max-width: none; margin: 0; border-radius: 0; border: none;
+  background: radial-gradient(120% 90% at 50% 0%, #12385a 0%, #0c2036 60%, #081627 100%);
+  display: flex; flex-direction: column; justify-content: center; padding: 24px;
+}
+body.starter-focus .starter-toolbar { position: fixed; top: 16px; right: 16px; margin: 0; justify-content: flex-end; }
+body.starter-focus .starter-focus-enter { display: none; }
+body.starter-focus .starter-exit { display: inline-flex; }
+body.starter-focus .starter-stage { min-height: 62vh; flex: 1; }
+body.starter-focus .starter-pos { color: #9db8cf; font-size: 0.95rem; }
+body.starter-focus .starter-cur-name { color: #eaf4fb; font-size: clamp(2rem, 7vw, 3.4rem); }
+body.starter-focus .starter-cur-sub { color: #9db8cf; font-size: 1.05rem; }
+body.starter-focus .starter-clock > * { color: #fff; font-size: clamp(5rem, 20vw, 13rem); }
+body.starter-focus .starter-clock.imminent > * { color: #ffd97a; font-size: clamp(9rem, 42vh, 24rem); }
+body.starter-focus .starter-clock.go > * { color: #4be08b; font-size: clamp(7rem, 30vh, 18rem); }
+body.starter-focus .starter-clock-label { color: #9db8cf; font-size: 0.95rem; }
+body.starter-focus .starter-clock.go + .starter-clock-label { color: #4be08b; }
+body.starter-focus .starter-ondeck { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.16); }
+body.starter-focus .starter-ondeck.last { background: rgba(202,164,100,0.14); border-color: rgba(202,164,100,0.4); }
+body.starter-focus .starter-ondeck-label { color: #9db8cf; }
+body.starter-focus .starter-ondeck-name { color: #fff; }
+body.starter-focus .starter-ondeck-sub { color: #9db8cf; }
+body.starter-focus .starter-toolbar .btn-ghost { border-color: rgba(255,255,255,0.4); color: #eaf4fb; }
+body.starter-focus .starter-toolbar .btn-ghost:hover { border-color: #fff; color: #fff; }
+
+@media (prefers-reduced-motion: reduce) {
+  .starter-clock.imminent > *.tick, .starter-clock.go.flash > * { animation: none; }
 }
 
 /* ===================== Följ live (karta) ===================== */
@@ -885,6 +973,7 @@ body.spectator .live-map { height: clamp(420px, 74vh, 760px); }
         <a href="#infor">Inför loppet</a>
         <a href="#anmalan">Anmälan</a>
         <a href="#min-start">Min start</a>
+        <a href="#startfunktionar" class="nav-admin">Starta</a>
         <a href="#live">Följ live</a>
         <a href="#startlista">Startlista</a>
         <a href="#anmalan" class="nav-cta">Anmäl dig</a>
@@ -1246,6 +1335,28 @@ body.spectator .live-map { height: clamp(420px, 74vh, 760px); }
           <p>Inga anmälda ännu — kom tillbaka när fältet fyllts på, eller
             <a href="#anmalan">anmäl din båt</a> först.</p>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Startfunktionär (endast arrangör) ===== -->
+  <section class="section alt admin-only starter-section" id="startfunktionar">
+    <div class="wrap">
+      <div class="section-head center">
+        <p class="eyebrow">Startfunktionär</p>
+        <h2>Skicka iväg fältet</h2>
+        <p class="lead">Nästa båt att starta visas automatiskt med nedräkning till sin exakta
+          starttid. De sista tio sekunderna växer siffrorna — när båten gått fram tar nedräkningen
+          för nästa båt vid av sig själv.</p>
+      </div>
+
+      <div class="card starter-card" id="starterCard">
+        <div class="starter-toolbar">
+          <button type="button" class="btn btn-primary starter-focus-enter" id="starterFocusBtn">⛶ Fokusläge</button>
+          <button type="button" class="btn btn-ghost" id="starterSoundBtn" aria-pressed="false">🔇 Ljud av</button>
+          <button type="button" class="btn btn-ghost starter-exit" id="starterExitBtn">✕ Stäng fokusläge</button>
+        </div>
+        <div class="starter-stage" id="starterStage"></div>
       </div>
     </div>
   </section>
@@ -1718,6 +1829,8 @@ const el = {
   cdBody: $('cdBody'), cdEmpty: $('cdEmpty'), cdStatus: $('cdStatus'), cdBoat: $('cdBoat'),
   cdTime: $('cdTime'), cdTimeLabel: $('cdTimeLabel'), cdMeta: $('cdMeta'),
   thanksCode: $('thanksCode'), thanksCodeVal: $('thanksCodeVal'),
+  starterCard: $('starterCard'), starterStage: $('starterStage'),
+  starterFocusBtn: $('starterFocusBtn'), starterSoundBtn: $('starterSoundBtn'), starterExitBtn: $('starterExitBtn'),
   liveMap: $('liveMap'), liveEmpty: $('liveEmpty'), liveList: $('liveList'),
   spectatorToggle: $('spectatorToggle'), spectatorShareBtn: $('spectatorShareBtn'), liveBoardHead: $('liveBoardHead'),
   shareIdle: $('shareIdle'), sharePick: $('sharePick'), shareBoat: $('shareBoat'), shareCode: $('shareCode'),
@@ -1903,6 +2016,204 @@ if (el.myEntrySelect) {
     renderMyStart();
   });
 }
+
+/* ============================================================
+   6b. STARTFUNKTIONÄR — automatisk nedräkning per båt
+   ============================================================
+   Funktionären som skickar iväg fältet får nästa båt att starta upp
+   automatiskt, med nedräkning till dess exakta starttid. Vid ≤10 s växer
+   siffrorna; när starttiden passerat visas "GÅ!" en kort stund och därefter
+   tas nästa båt vid av sig själv. */
+const STARTER_HOLD_MS = 3000;  // hur länge en avgången båt visas som "GÅ!" innan nästa tas upp
+
+let starterMode = null;        // 'idle' | 'done' | 'active' — så DOM byggs om bara vid lägesbyte
+let starterDisplaySec = null;  // senast visad sekundsiffra (för att pulsa om vid ny sekund)
+let starterWasGo = false;      // för att blinka "GÅ!" en gång vid T-0
+let starterOndeckKey = null;   // för att bara rita om "nästa på tur" när den ändras
+let starterSound = false;      // pip/horn på/av (kräver användargest)
+let starterAudioCtx = null;
+let starterLastBeepSec = null; // pip en gång per sekund sista 10
+let starterLastGoId = null;    // horn en gång per båt
+let starterWakeLock = null;    // håll skärmen tänd i fokusläge
+
+function ensureStarterAudio() {
+  if (!starterAudioCtx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    try { starterAudioCtx = new AC(); } catch { return null; }
+  }
+  if (starterAudioCtx.state === 'suspended') { try { starterAudioCtx.resume(); } catch {} }
+  return starterAudioCtx;
+}
+function starterBeep(freq, durMs, vol) {
+  const ctx = ensureStarterAudio();
+  if (!ctx) return;
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = 'sine'; o.frequency.value = freq;
+  o.connect(g); g.connect(ctx.destination);
+  const t = ctx.currentTime, v = vol ?? 0.18;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(v, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + durMs / 1000);
+  o.start(t); o.stop(t + durMs / 1000 + 0.02);
+}
+function handleStarterSound(cur, secs, remaining) {
+  if (!starterSound) { starterLastBeepSec = null; return; }
+  if (remaining <= 0) {
+    if (starterLastGoId !== cur.id) { starterLastGoId = cur.id; starterBeep(660, 850, 0.24); }
+    starterLastBeepSec = null;
+    return;
+  }
+  if (secs <= 10 && secs >= 1 && starterLastBeepSec !== secs) {
+    starterLastBeepSec = secs;
+    starterBeep(880, 120, 0.16);
+  }
+  if (remaining > 10500) starterLastBeepSec = null;
+}
+
+function buildStarterScaffold() {
+  el.starterStage.innerHTML =
+    '<div class="starter-pos" id="stPos"></div>' +
+    '<div class="starter-current">' +
+      '<span class="starter-cur-name" id="stName"></span>' +
+      '<span class="starter-cur-sub" id="stSub"></span>' +
+    '</div>' +
+    '<div class="starter-clock" id="stClock"><span class="starter-time" id="stTime"></span></div>' +
+    '<div class="starter-clock-label" id="stLabel"></div>' +
+    '<div class="starter-ondeck" id="stOndeck"></div>';
+  el._st = {
+    pos: $('stPos'), name: $('stName'), sub: $('stSub'),
+    clock: $('stClock'), time: $('stTime'), label: $('stLabel'), ondeck: $('stOndeck'),
+  };
+  starterOndeckKey = null;
+}
+
+function renderStarter() {
+  if (!el.starterStage) return;
+  const focus = document.body.classList.contains('starter-focus');
+  if (!isAdmin() && !focus) return;
+
+  const list = currentStartList();  // redan sorterad på startSec
+
+  if (!list.length) {
+    if (starterMode !== 'idle') {
+      el.starterStage.innerHTML =
+        '<div class="starter-msg"><span class="starter-msg-mark">⛵</span>' +
+        '<p>Inga anmälda båtar ännu.<br>Nästa båt att starta visas här när fältet fyllts på.</p></div>';
+      starterMode = 'idle';
+    }
+    return;
+  }
+
+  const now = Date.now();
+  const baseMs = raceDayMidnightMs();
+  let idx = -1;
+  for (let i = 0; i < list.length; i++) {
+    if ((baseMs + list[i].startSec * 1000) - now > -STARTER_HOLD_MS) { idx = i; break; }
+  }
+
+  if (idx === -1) {
+    if (starterMode !== 'done') {
+      el.starterStage.innerHTML =
+        '<div class="starter-msg"><span class="starter-msg-mark">🏁</span>' +
+        '<p>Alla båtar har startat!</p></div>';
+      starterMode = 'done';
+    }
+    starterDisplaySec = null; starterWasGo = false;
+    return;
+  }
+
+  if (starterMode !== 'active') {
+    buildStarterScaffold();
+    starterMode = 'active'; starterDisplaySec = null; starterWasGo = false;
+  }
+
+  const cur = list[idx];
+  const next = list[idx + 1] || null;
+  const remaining = (baseMs + cur.startSec * 1000) - now;
+  const secs = Math.max(0, Math.ceil(remaining / 1000));
+  const imminent = remaining > 0 && remaining <= 10000;
+  const go = remaining <= 0;
+  const st = el._st;
+
+  handleStarterSound(cur, secs, remaining);
+
+  st.pos.textContent = `Båt ${idx + 1} av ${list.length}` + (cur.isFastest ? ' · snabbast – sist ut' : '');
+  st.name.textContent = cur.boatName || cur.name;
+  st.sub.textContent = `${cur.name} · startklocka ${fmtClock(cur.startSec)} · ${fmtRelative(cur.relOffsetMin).text}`;
+
+  st.clock.classList.toggle('imminent', imminent);
+  st.clock.classList.toggle('go', go);
+
+  if (go) {
+    st.time.textContent = 'GÅ!';
+    st.label.textContent = `Starttid ${fmtClock(cur.startSec)} — skicka iväg båten!`;
+    if (!starterWasGo) {
+      st.clock.classList.remove('flash'); void st.clock.offsetWidth; st.clock.classList.add('flash');
+      if (navigator.vibrate) navigator.vibrate([250, 100, 250, 100, 500]);
+    }
+    starterWasGo = true;
+    starterDisplaySec = null;
+  } else {
+    starterWasGo = false;
+    st.clock.classList.remove('flash');
+    st.label.textContent = 'till start';
+    if (imminent) {
+      st.time.textContent = String(secs);
+      if (starterDisplaySec !== secs) {
+        st.time.classList.remove('tick'); void st.time.offsetWidth; st.time.classList.add('tick');
+        starterDisplaySec = secs;
+      }
+    } else {
+      st.time.textContent = fmtCountdown(remaining);
+      starterDisplaySec = null;
+    }
+  }
+
+  const key = next ? String(next.id) : 'last';
+  if (key !== starterOndeckKey) {
+    if (next) {
+      st.ondeck.className = 'starter-ondeck';
+      st.ondeck.innerHTML =
+        '<span class="starter-ondeck-label">Nästa på tur</span>' +
+        `<span class="starter-ondeck-name">${escapeHtml(next.boatName || next.name)}</span>` +
+        `<span class="starter-ondeck-sub">${escapeHtml(next.name)} · start ${fmtClock(next.startSec)}</span>`;
+    } else {
+      st.ondeck.className = 'starter-ondeck last';
+      st.ondeck.innerHTML = '<span class="starter-ondeck-label">Sista båten i fältet</span>';
+    }
+    starterOndeckKey = key;
+  }
+}
+
+async function requestStarterWake() {
+  try { if ('wakeLock' in navigator) starterWakeLock = await navigator.wakeLock.request('screen'); } catch {}
+}
+async function releaseStarterWake() {
+  try { if (starterWakeLock) { await starterWakeLock.release(); starterWakeLock = null; } } catch {}
+}
+function setStarterFocus(on) {
+  document.body.classList.toggle('starter-focus', on);
+  if (on) { requestStarterWake(); ensureStarterAudio(); }
+  else releaseStarterWake();
+  renderStarter();
+}
+
+if (el.starterFocusBtn) el.starterFocusBtn.addEventListener('click', () => setStarterFocus(true));
+if (el.starterExitBtn) el.starterExitBtn.addEventListener('click', () => setStarterFocus(false));
+if (el.starterSoundBtn) el.starterSoundBtn.addEventListener('click', () => {
+  starterSound = !starterSound;
+  el.starterSoundBtn.setAttribute('aria-pressed', starterSound ? 'true' : 'false');
+  el.starterSoundBtn.classList.toggle('on', starterSound);
+  el.starterSoundBtn.innerHTML = starterSound ? '🔊 Ljud på' : '🔇 Ljud av';
+  if (starterSound) { ensureStarterAudio(); starterBeep(880, 120, 0.16); } // gest → tillåt + testpip
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.body.classList.contains('starter-focus')) setStarterFocus(false);
+});
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && document.body.classList.contains('starter-focus') && !starterWakeLock) requestStarterWake();
+});
 
 /* ---------- Följ live: karta + positionsdelning ---------- */
 let myCode = null;          // egen delningskod
@@ -2302,7 +2613,7 @@ function renderLockState() {
 
 function renderAll() {
   renderStatus(); renderLockState(); renderStartList(); renderMyStart();
-  renderShareControl(); renderLive(); loadCodes(); loadKorvAdmin();
+  renderShareControl(); renderLive(); renderStarter(); loadCodes(); loadKorvAdmin();
 }
 
 /* ============================================================
@@ -2793,6 +3104,7 @@ loadKorv();
 subscribeRealtime();
 tickEventCountdown();
 setInterval(tickCountdown, 250);
+setInterval(renderStarter, 250); // startfunktionärens nedräkning per båt
 setInterval(tickEventCountdown, 250); // nedräkning till loppet i hero
 setInterval(renderLive, 5000); // uppdatera åldrar/gråmarkering på kartan
 
